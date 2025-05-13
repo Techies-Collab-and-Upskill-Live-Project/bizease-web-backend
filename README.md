@@ -4,25 +4,35 @@ This is an internship project for the [tcu](https://www.linkedin.com/company/tec
 
 ## Development
 
-Create a virtual environment
+Before You get started, make sure you have Python 3.10, 3.11, or 3.12 installed and preferrably the latest release. 
 
-to be updated
+These are the python versions that Django 5.2.1 supports.
 
-Install the required depenedncies
+**Create and activate a virtual environment**
 
-to be updated
+Create the virtual environment
+```bash
+python -m venv <path/to/preferred/directory>
+```
 
-Start the development Server
+[Activate](https://docs.python.org/3/library/venv.html#how-venvs-work) the created virtual environment depending on the platform you are working on
 
-to be updated
+**Install Dependencies inside the activated environment**
 
-To start a local development server, run:
+```bash
+python -m pip install -r requirements.txt
+```
+
+**Start the development Server**
+
+Make sure you are at the root of the repo, the run the command below to start a local development server
 
 ```bash
 python manage.py runserver
 ```
+Once the server is running, open your browser and navigate to `http://localhost:8000/` to view a web page without errors.
 
-Once the server is running, open your browser and navigate to `http://localhost:<port-will-be-specified-later>/`.
+In case of any issue, please visit the official [django docs](https://docs.djangoproject.com/en/5.2/) or the official [python  docs](https://docs.python.org/3/) for help
 
 ## Code scaffolding
 
