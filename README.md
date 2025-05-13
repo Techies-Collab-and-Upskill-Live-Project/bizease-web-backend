@@ -23,9 +23,19 @@ python -m venv <path/to/preferred/directory>
 python -m pip install -r requirements.txt
 ```
 
-**Start the development Server**
+**Move to proper path**
 
-Make sure you are at the root of the repo, the run the command below to start a local development server
+- Make sure you are at the root of the repo
+- Navigate into the bizease folder from the root
+- Run the commands below
+
+**Apply migrations as needed**
+
+```bash
+python manage.py migrate
+```
+
+**Start the development server**
 
 ```bash
 python manage.py runserver
@@ -36,16 +46,16 @@ In case of any issue, please visit the official [django docs](https://docs.djang
 
 ## Code scaffolding
 
-to be updated
+_to be updated_
 
 ## Building
 
-To be updated
+_To be updated_
 
 ## Running unit tests
 
-To be updated
+_To be updated_
 
 ## Running end-to-end tests
 
-To be updated
+_To be updated_
