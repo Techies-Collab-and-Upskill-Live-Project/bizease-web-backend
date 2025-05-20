@@ -41,7 +41,7 @@ class CustomUserChangeForm(forms.ModelForm):
 
 class CustomUserAdmin(UserAdmin):
 	model = CustomUser
-	form = CustomUserCreationForm
+	form = CustomUserChangeForm
 	add_form = CustomUserCreationForm
 	list_display = ['id', 'email', 'full_name', 'business_name', 'is_staff', 'is_active'] # 
 	list_filter = ['email', 'is_superuser', 'is_staff', 'is_active'] #
