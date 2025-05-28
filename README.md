@@ -1,6 +1,6 @@
 # BizEase WebSite Backend API
 
-This is an internship project for the [tcu](https://www.linkedin.com/company/techies-collab-and-upskill-on-live-project/) 3.0 cohort
+This is an internship project for the [tcu](https://www.linkedin.com/company/techies-collab-and-upskill-on-live-project/) 3.0 cohort.
 
 ## Development
 
