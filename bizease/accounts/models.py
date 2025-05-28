@@ -40,7 +40,7 @@ class CustomUserManager(BaseUserManager):
 class CustomUser(AbstractBaseUser, PermissionsMixin):
 	business_name = models.CharField(max_length=200, unique=True)
 	full_name = models.CharField(max_length=200)
-	email = models.CharField(_('Email Address'), max_length=150, unique=True) # email amd password for logging in
+	email = models.CharField(_('Email Address'), max_length=150, unique=True) # email and password for logging in
 	business_email = models.CharField(max_length=150, unique=True, blank=True, null=True)
 	CURRENCY_CHOICES = {"USD": "United States dollar", "NGN": "Nigerian naira", "GBP": "Pound sterling"}
 	currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default="NGN")
@@ -56,6 +56,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 	USERNAME_FIELD = 'email'
 	REQUIRED_FIELDS = []
 	objects = CustomUserManager()
+
+	# users table would need some form of low_stock_alert_threshold col if we are following design then
+	# all requests should have some form of currency field then
 
 	def __str__(self):
 		return self.email
