@@ -30,7 +30,7 @@ ALLOWED_HOSTS = []
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
-# Application definition
+APPEND_SLASH = False
 
 INSTALLED_APPS = [
     'accounts',
@@ -52,6 +52,11 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
  ] 
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7)
 }
 
 MIDDLEWARE = [

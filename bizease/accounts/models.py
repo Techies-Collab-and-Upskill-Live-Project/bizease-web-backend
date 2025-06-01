@@ -50,7 +50,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 	business_name = models.CharField(max_length=200, unique=True)
 	full_name = models.CharField(max_length=200)
 	email = models.CharField(_('Email Address'), max_length=150, unique=True) # email and password for logging in
-	business_email = models.CharField(max_length=150, unique=True, blank=True, null=True)
+	business_email = models.CharField(max_length=150, unique=True, null=True)
+	phone = models.CharField(max_length=24, blank=True)
+	business_phone = models.CharField(max_length=24, blank=True)
+	business_address = models.CharField(max_length=150, blank=True)
 	CURRENCY_CHOICES = {"USD": "United States dollar", "NGN": "Nigerian naira", "GBP": "Pound sterling"}
 	currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default="NGN")
 	business_type = models.CharField(max_length=150, blank=True, choices=BUSINESS_CHOICES)
@@ -58,7 +61,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 	COUNTRY_CHOICES = {"United States": "United States", "Nigeria": "Nigeria"}
 	country = models.CharField(choices=COUNTRY_CHOICES, default="Nigeria");
 	state = models.CharField(max_length=100, blank=True)
-	low_stock_threshold = models.IntegerField(default=0)
+	rcv_mail_for_new_orders = models.BooleanField(default=True)
+	rcv_mail_for_low_stocks = models.BooleanField(default=True)
+	rcv_mail_notification = models.BooleanField(default=True)
+	rcv_msg_notification = models.BooleanField(default=True)
+	default_order_status = models.CharField(choices=[("Pending","Pending"),("Delivered","Delivered")], default="Pending")
+	language = models.CharField(max_length=50, default="English")
+	low_stock_threshold = models.IntegerField(default=5)
 	date_joined = models.DateTimeField(_("date joined"), default=timezone.now)
 	is_staff = models.BooleanField(default=False)
 	is_active = models.BooleanField(default=True)

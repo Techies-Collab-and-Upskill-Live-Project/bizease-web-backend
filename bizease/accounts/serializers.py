@@ -2,10 +2,20 @@ from rest_framework import serializers
 from .models import CustomUser
 
 
-class UserDataSerializer(serializers.ModelSerializer):
+class ProfileDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['business_name', 'full_name', 'email', 'password', 'business_type', 'country', 'currency', 'state', 'low_stock_threshold']
+        fields = [
+            'business_name', 'full_name', 'email', 'business_type', 'country', 'currency', 
+            'state', 'rcv_mail_for_new_orders', 'rcv_mail_for_low_stocks', 'phone', 'business_phone',
+            'business_address','rcv_mail_notification', 'rcv_msg_notification', 'default_order_status',
+            'language', 'low_stock_threshold'
+        ]
+        
+class SignUpDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['business_name', 'full_name', 'email', 'password', 'business_type', 'country', 'currency', 'state']
 
     def create(self, validated_data):
         """
