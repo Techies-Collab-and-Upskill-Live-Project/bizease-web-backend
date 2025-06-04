@@ -45,7 +45,7 @@ class LoginView(APIView):
 
 		user = authenticate(request, username=serializer.data["email"], password=serializer.data["password"])
 		if not user:
-			return Response({"msg": "Not recognized. pls sign up"}, status=status.HTTP_401_UNAUTHORIZED)
+			return Response({"msg": "Invalid credentials!"}, status=status.HTTP_401_UNAUTHORIZED)
 
 		tokens = get_tokens_for_user(user)
 		return Response({"msg": "Login successful", "auth_tokens": tokens}, status=status.HTTP_200_OK)
@@ -66,7 +66,7 @@ class ProfileView(APIView):
 				return Response({"msg": "User data updated successful"}, status=status.HTTP_200_OK)
 			else:
 				return Response(
-					{"msg": "One or more iNvalid fields are present", "errors": dataUpdate.errors}, 
+					{"msg": "One or more Invalid fields are present", "errors": dataUpdate.errors}, 
 					status=status.HTTP_400_BAD_REQUEST
 				)
 		return Response({"msg": "Unauthenticated Request. Please Login!"}, status=status.HTTP_401_UNAUTHORIZED)
