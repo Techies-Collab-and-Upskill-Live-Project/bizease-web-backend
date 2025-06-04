@@ -34,6 +34,8 @@ APPEND_SLASH = False
 
 INSTALLED_APPS = [
     'accounts',
+    'inventory',
+    'orders',
     'rest_framework',
     'rest_framework_simplejwt',
     'django.contrib.admin',
