@@ -10,6 +10,8 @@ from rest_framework import status
 # 	def post
 
 class InventoryView(APIView):
+	permission_classes = [IsAuthenticated]
+	
 	# todo: add pagination
 	def get(self, request, **kwargs):
 		inventory_serializer = InventoryListSerializer({"data": list(Inventory.objects.filter(owner=request.user.id))})

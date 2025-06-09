@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
 
 
 def get_tokens_for_user(user):
@@ -50,40 +51,33 @@ class LoginView(APIView):
 
 
 class ProfileView(APIView):
+	permission_classes = [IsAuthenticated]
 	def get(self, request, **kwargs):
-		if (request.user.is_authenticated):
-			userProfileDict = ProfileDataSerializer(request.user).data
-			return Response({"data": userProfileDict}, status=status.HTTP_200_OK)
-		return Response({"msg": "Unauthenticated Request. Please Login!"}, status=status.HTTP_401_UNAUTHORIZED)
+		userProfileDict = ProfileDataSerializer(request.user).data
+		return Response({"data": userProfileDict}, status=status.HTTP_200_OK)
 
 	def put(self, request, **kwargs):
-		if (request.user.is_authenticated):
-			dataUpdate = ProfileDataSerializer(request.user, data=request.data, partial=True)
-			if dataUpdate.is_valid():
-				dataUpdate.save()
-				return Response({"msg": "User data updated successful"}, status=status.HTTP_200_OK)
-			else:
-				return Response(
-					{"msg": "One or more Invalid fields are present", "errors": dataUpdate.errors}, 
-					status=status.HTTP_400_BAD_REQUEST
-				)
-		return Response({"msg": "Unauthenticated Request. Please Login!"}, status=status.HTTP_401_UNAUTHORIZED)
+		dataUpdate = ProfileDataSerializer(request.user, data=request.data, partial=True)
+		if dataUpdate.is_valid():
+			dataUpdate.save()
+			return Response({"msg": "User data updated successful"}, status=status.HTTP_200_OK)
+		else:
+			return Response(
+				{"msg": "One or more Invalid fields are present", "errors": dataUpdate.errors}, 
+				status=status.HTTP_400_BAD_REQUEST
+			)
 
 	def delete(self, request, **kwargs):
-		if (request.user.is_authenticated):
-			del_count, del_dict = request.user.delete()
-			if (del_count > 0):
-				return Response({"msg": "User data deleted successfully"}, status=status.HTTP_200_OK)
-			else: # What could go wrong?
-				return Response(
-					{"msg": "Delete operation incomplete. Something went wrong while deleting user data"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-				)
-		return Response({"msg": "Unauthenticated Request. Please Login!"}, status=status.HTTP_401_UNAUTHORIZED)
-
+		del_count, del_dict = request.user.delete()
+		if (del_count > 0):
+			return Response({"msg": "User data deleted successfully"}, status=status.HTTP_200_OK)
+		else: # What could go wrong?
+			return Response(
+				{"msg": "Delete operation incomplete. Something went wrong while deleting user data"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+			)
 
 class LogoutView(APIView):
+	permission_classes = [IsAuthenticated]
 	def delete(self, request, **kwargs):
-		if (request.user.is_authenticated):
-			# remove the token
-			return Response({"msg": "User logged out"}, status=status.HTTP_200_OK)
-		return Response({"msg": "Unauthenticated Request. Please Login!"}, status=status.HTTP_401_UNAUTHORIZED)
+		# remove the token
+		return Response({"msg": "User logged out"}, status=status.HTTP_200_OK)
