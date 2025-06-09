@@ -7,8 +7,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
 
 
 def get_tokens_for_user(user):
@@ -25,10 +23,10 @@ def get_tokens_for_user(user):
 """
 
 class SignUpView(APIView):
-	def post(self, request):
+	def post(self, request, **kwargs):
 		serializer = SignUpDataSerializer(data=request.data)
 		if not serializer.is_valid():
-			return Response({"errors": serializer.errors}, status=400)
+			return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 		else:
 			newUser = serializer.save()
 		# todo: log the user in too?
@@ -37,7 +35,7 @@ class SignUpView(APIView):
 
 
 class LoginView(APIView):
-	def post(self, request):
+	def post(self, request, **kwargs):
 		serializer = LoginDataSerializer(data=request.data)
 
 		if not serializer.is_valid():
@@ -52,13 +50,13 @@ class LoginView(APIView):
 
 
 class ProfileView(APIView):
-	def get(self, request):
+	def get(self, request, **kwargs):
 		if (request.user.is_authenticated):
 			userProfileDict = ProfileDataSerializer(request.user).data
 			return Response({"data": userProfileDict}, status=status.HTTP_200_OK)
 		return Response({"msg": "Unauthenticated Request. Please Login!"}, status=status.HTTP_401_UNAUTHORIZED)
 
-	def put(self, request):
+	def put(self, request, **kwargs):
 		if (request.user.is_authenticated):
 			dataUpdate = ProfileDataSerializer(request.user, data=request.data, partial=True)
 			if dataUpdate.is_valid():
@@ -71,7 +69,7 @@ class ProfileView(APIView):
 				)
 		return Response({"msg": "Unauthenticated Request. Please Login!"}, status=status.HTTP_401_UNAUTHORIZED)
 
-	def delete(self, request):
+	def delete(self, request, **kwargs):
 		if (request.user.is_authenticated):
 			del_count, del_dict = request.user.delete()
 			if (del_count > 0):
@@ -84,13 +82,8 @@ class ProfileView(APIView):
 
 
 class LogoutView(APIView):
-	def delete(self, request):
+	def delete(self, request, **kwargs):
 		if (request.user.is_authenticated):
 			# remove the token
 			return Response({"msg": "User logged out"}, status=status.HTTP_200_OK)
 		return Response({"msg": "Unauthenticated Request. Please Login!"}, status=status.HTTP_401_UNAUTHORIZED)
-
-# todo:
-# Implement cors and csrf
-# Implement custom message for present but invalid jwts
-# Implement custom message for 405 errors
