@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'accounts',
     'inventory',
     'orders',
+    "corsheaders",
     'rest_framework',
     'rest_framework_simplejwt',
     'django.contrib.admin',
@@ -63,6 +64,7 @@ SIMPLE_JWT = {
 }
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -71,6 +73,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'bizease.urls'
 
@@ -97,7 +101,7 @@ WSGI_APPLICATION = 'bizease.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
+        'ENGINE': 'django.db.backends.sqlite3', # postgresql://bizease_user:bizease_pass_yes223344@64.20.34.156:5432/bizease_db
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
