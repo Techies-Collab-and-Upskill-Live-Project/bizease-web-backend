@@ -11,10 +11,11 @@ class Category(models.Model):
 
 class Inventory(models.Model):
 	owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-	product_name = models.CharField(max_length=100)
+	product_name = models.CharField(max_length=100, unique=True)
 	description = models.CharField(max_length=300, blank=True)
 	category = models.ForeignKey(Category, to_field="name", on_delete=models.SET_NULL, null=True)
 	stock_level = models.IntegerField(default=0) # Add a check constraint that rejects negative numbers
+	low_stock_threshold = models.IntegerField(default=5) # Add a check constraint that rejects negative numbers
 	price = models.IntegerField(default=0) # Add a check constraint that rejects negative numbers
 	last_updated = models.DateField(auto_now_add=True)
 
