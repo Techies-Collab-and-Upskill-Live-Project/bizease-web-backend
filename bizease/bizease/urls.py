@@ -5,7 +5,7 @@ from django.urls import path, include, re_path
 urlpatterns = [
   path('admin/', admin.site.urls),
   re_path(r'^(?P<version>(v1))/accounts/', include('accounts.urls')),
-  # path('accounts/', include('accounts.urls')),
-  # path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh')
+  re_path(r'^(?P<version>(v1))/orders/', include('orders.urls')),
+  re_path(r'^(?P<version>(v1))/inventory/', include('inventory.urls')),
   re_path(r'^(?P<version>(v1))/token/refresh/$', TokenRefreshView.as_view(), name='token_refresh')
 ]
