@@ -1,6 +1,6 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from .serializers import OrderSerializer, ProductsOrdersSerializers
+from .serializers import OrderSerializer, OrdersArraySerializers
 from rest_framework.response import Response
 from django.db.models import Model
 from .models import Order
@@ -22,7 +22,7 @@ class OrdersView(APIView):
 	# To implement: filter (by category, status, stock_level), search and normal get
 	def get(self, request, **kwargs):
 		# Tell frontend that id is order_id and they should reformat it to look fancy or whatever
-		serializer = ProductsOrdersSerializers({"data": list(Order.objects.all())})
+		serializer = OrdersArraySerializers({"data": list(Order.objects.all())})
 		return Response(serializer.data, status=status.HTTP_200_OK)
 
 	def post(self, request, **kwargs):
@@ -37,7 +37,7 @@ class OrdersView(APIView):
 class SingleOrderView(APIView):
 	def get(self, request, itemId, **kwargs):
 		# Tell frontend that id is order_id and they should reformat it to look fancy or whatever
-		data = ProductsOrdersSerializers(data={"entries": Orders.objects.all()}).data
+		data = OrdersArraySerializers(data={"entries": Orders.objects.all()}).data
 		return Response({"data": data}, status=status.HTTP_200_OK)
 
 	# def put(self, request, itemId, **kwargs):
@@ -60,6 +60,7 @@ class SingleOrderView(APIView):
 		except Model.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
 			return Response({"msg": "Target happens to be multiple items"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+		# prevent the deletion of delivered orders
 		del_count, del_dict = item.delete()
 		if (del_count > 0):
 			return Response({"msg": "Order deleted successfully"}, status=status.HTTP_200_OK)
