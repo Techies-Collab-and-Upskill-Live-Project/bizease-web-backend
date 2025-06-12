@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -98,11 +102,15 @@ WSGI_APPLICATION = 'bizease.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3', # postgresql://bizease_user:bizease_pass_yes223344@64.20.34.156:5432/bizease_db
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': os.getenv('DBENGINE', 'django.db.backends.sqlite3'), 
+        'NAME': os.getenv('DBNAME', BASE_DIR / 'db.sqlite3'),
+        "USER": os.getenv('USER'),
+        "PASSWORD": os.getenv('PASSWORD'),
+        "HOST": os.getenv('HOST'),
+        "PORT": os.getenv('PORT'),
+        "pool": True,
     }
 }
 

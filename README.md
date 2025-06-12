@@ -33,6 +33,20 @@ python -m pip install -r requirements.txt
 - Navigate into the bizease folder from the root
 - Run the commands below
 
+**Configure database**
+
+Create a `.env` file inside the bizease directory you just navigated into. Add the following settings (without the '%' characters) 
+to the file to configure your preferred database
+```bash
+USER=%db-username%
+PASSWORD=%db-password%
+DBNAME=%db-name%
+HOST=%host-name-or-ip-address%
+PORT=%port-no-the-server-is-listening-on%
+DBENGINE=%django-db-engine-settings-option%
+```
+If you do not set this, the database server configuration will default to a sqlite file named 'db.sqlite3' as the db
+
 **Apply migrations as needed**
 
 ```bash
