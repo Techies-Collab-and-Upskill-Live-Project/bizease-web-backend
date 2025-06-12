@@ -21,11 +21,12 @@ class OrderedProduct(models.Model):
 	name = models.CharField(max_length=100)
 	order_id = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="ordered_products")
 	quantity = models.IntegerField()
-	price = models.IntegerField(default=0) # price is value instead of holding a forign key to the inventory item incase the order has been made but item 
-	cummulative_price = models.IntegerField()
+	price = models.IntegerField(default=0)
+	cummulative_price = models.IntegerField() # should be a generated column since it's quantity x price?
 
 	class Meta:
 		constraints = [models.UniqueConstraint(fields=["order_id", "name"], name="unique_product_in_order")]
 		# add check constraint such that quantity is never less than 1 and cumm_price only ever approaches 0.
 
-	# check if the product_ordered field value exists in orders and check if it's still in stock before saving
+	def __str__(self):
+		return f"{self.name}({self.quantity})"

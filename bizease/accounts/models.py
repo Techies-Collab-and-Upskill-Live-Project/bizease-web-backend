@@ -13,7 +13,6 @@ class CustomUserManager(BaseUserManager):
 		if not email:
 			raise ValueError('Email is required')
 		email = self.normalize_email(email)
-		return
 		user = self.model(email=email, **extra_fields)
 		user.set_password(password)
 		user.save()
@@ -57,7 +56,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 	CURRENCY_CHOICES = {"USD": "United States dollar", "NGN": "Nigerian naira", "GBP": "Pound sterling"}
 	currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default="NGN")
 	business_type = models.CharField(max_length=150, blank=True, choices=BUSINESS_CHOICES)
-	password = models.CharField(max_length=50)
+	password = models.CharField(max_length=128)
 	COUNTRY_CHOICES = {"United States": "United States", "Nigeria": "Nigeria"}
 	country = models.CharField(choices=COUNTRY_CHOICES, default="Nigeria");
 	state = models.CharField(max_length=100, blank=True)

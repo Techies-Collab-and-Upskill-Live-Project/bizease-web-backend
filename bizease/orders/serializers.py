@@ -20,8 +20,9 @@ class OrderSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Order
 		fields = [
-			'client_name', 'client_email', 'client_phone', 'status', 'ordered_products'
+			'client_name', 'client_email', 'client_phone', 'status', 'ordered_products', 'total_price'
 		]
+	total_price = serializers.IntegerField(required=False)
 	ordered_products = OrderedProductSerializer(many=True)
 
 	# todo: Wrap it all in a transaction
@@ -79,5 +80,5 @@ class OrderSerializer(serializers.ModelSerializer):
 			
 		return {"details": {"msg": "Order created successfully"}, "status": 200}
 
-class ProductsOrdersSerializers(serializers.Serializer):
+class OrdersArraySerializers(serializers.Serializer):
 	data = OrderSerializer(many=True)
