@@ -5,7 +5,7 @@ from inventory.models import Inventory
 from rest_framework import status
 from django.db.models import Sum, F
 from orders.serializers import OrdersArraySerializers
-from inventory.serializers import InventoryListSerializer
+from inventory.serializers import InventoryItemSerializer
 from rest_framework.permissions import IsAuthenticated
 
 """
@@ -51,11 +51,12 @@ class DashBoardView(APIView):
 		orders_serializer = OrdersArraySerializers(
 			{"data": list(Order.objects.filter(product_owner_id=request.user.id).filter(status="Pending").order_by("-order_date")[:6])}
 		)
-		inventory_serializer = InventoryListSerializer(
-			{"data": list(Inventory.objects.filter(owner=request.user.id).filter(stock_level__lte=F("low_stock_threshold")).order_by("-last_updated")[:6])}
+		inventory_serializer = InventoryItemSerializer(
+			list(Inventory.objects.filter(owner=request.user.id).filter(stock_level__lte=F("low_stock_threshold")).order_by("-last_updated")[:6]),
+			many=True
 		)
 		dashboard_data["pending_order"] = orders_serializer.data["data"]
-		dashboard_data["low_stock_items"] = inventory_serializer.data["data"]
+		dashboard_data["low_stock_items"] = inventory_serializer.data
 		return Response(dashboard_data, status=status.HTTP_200_OK)
 
 		# dashboard_data["top_selling_product"] = OrderedProduct.objects.values("name").annotate(total_units_sold=Sum("quantity"))

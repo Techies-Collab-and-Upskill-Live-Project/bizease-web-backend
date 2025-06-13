@@ -30,7 +30,6 @@ class SignUpView(APIView):
 			return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 		else:
 			newUser = serializer.save()
-		# todo: log the user in too?
 		tokens = get_tokens_for_user(newUser)
 		return Response({"msg": "User Created successfully", "auth_tokens": tokens}, status=status.HTTP_200_OK)
 

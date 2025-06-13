@@ -1,8 +1,7 @@
 from .models import Inventory
 from rest_framework.views import APIView
-from .serializers import InventoryItemSerializer, InventoryListSerializer
+from .serializers import InventoryItemSerializer
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Model
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -14,7 +13,7 @@ class InventoryView(APIView):
 	
 	# todo: add pagination
 	def get(self, request, **kwargs):
-		inventory_serializer = InventoryListSerializer({"data": list(Inventory.objects.filter(owner=request.user.id))})
+		inventory_serializer = InventoryItemSerializer(list(Inventory.objects.filter(owner=request.user.id)), many=True)
 		return Response(inventory_serializer.data, status=status.HTTP_200_OK)
 
 	def post(self, request, **kwargs):
@@ -24,28 +23,28 @@ class InventoryView(APIView):
 		else:
 			item = Inventory(owner=request.user, **serializer.data)
 			item.save()
-		return Response({"msg": "New Item added to inventory"}, status=status.HTTP_200_OK)
+		return Response({"msg": "New Item added to inventory", "data": InventoryItemSerializer(item).data}, status=status.HTTP_200_OK)
 
 class InventoryItemView(APIView):
 	permission_classes = [IsAuthenticated]
 
-	def get(self, request, itemId, **kwargs):
+	def get(self, request, item_id, **kwargs):
 		try:
-			item = Inventory.objects.get(pk=itemId)
-		except Model.DoesNotExist:
+			item = Inventory.objects.get(pk=item_id)
+		except Inventory.DoesNotExist:
 			return Response({"msg": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
-		except Model.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
+		except Inventory.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
 			return Response({"msg": "Target happens to be multiple items"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 		inventory_item = InventoryItemSerializer(item)
-		return Response({"data": inventory_item.data}, status=status.HTTP_200_OK)
+		return Response(inventory_item.data, status=status.HTTP_200_OK)
 
-	def put(self, request, itemId, **kwargs):
+	def put(self, request, item_id, **kwargs):
 		try:
-			item = Inventory.objects.get(pk=itemId)
-		except Model.DoesNotExist:
+			item = Inventory.objects.get(pk=item_id)
+		except Inventory.DoesNotExist:
 			return Response({"msg": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
-		except Model.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
+		except Inventory.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
 			return Response({"msg": "Target happens to be multiple items"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 		productDataUpdate = InventoryItemSerializer(item, data=request.data, partial=True)
@@ -58,12 +57,12 @@ class InventoryItemView(APIView):
 				status=status.HTTP_400_BAD_REQUEST
 			)
 
-	def delete(self, request, ItemId, **kwargs):
+	def delete(self, request, item_id, **kwargs):
 		try:
-			item = Inventory.objects.get(pk=itemId)
-		except Model.DoesNotExist:
+			item = Inventory.objects.get(pk=item_id)
+		except Inventory.DoesNotExist:
 			return Response({"msg": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
-		except Model.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
+		except Inventory.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
 			return Response({"msg": "Target happens to be multiple"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 		del_count, del_dict = item.delete()
