@@ -8,26 +8,6 @@ from orders.serializers import OrdersArraySerializers
 from inventory.serializers import InventoryItemSerializer
 from rest_framework.permissions import IsAuthenticated
 
-"""
-- pending orders
-  - id
-  - orderId // This would be removed. Generate it with the id field
-  - customerName
-  - total
-  - date
-  - status // needed? I mean it's clearly stated that it's a pending order
-
-- low stock items
-  - id
-  - low_stock_threshold
-  - category
-  - stockLevel
-  - price
-  - lastUpdated
-  - actions: 'Restock', // This would no longer be there
-  - status: 'Low Stock', // needed? I mean it's clearly stated that it's a low stock
- """
-
 # todo: add support for query params to specify pending_orders and low_stock_items count expected
 class DashBoardView(APIView):
 	permission_classes = [IsAuthenticated]
