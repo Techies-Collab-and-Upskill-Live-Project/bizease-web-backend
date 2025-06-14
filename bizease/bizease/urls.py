@@ -13,10 +13,10 @@ urlpatterns = [
 ]
 
 def custom_404_view(request, exception):
-  return HttpResponseNotFound('{"msg": "Resource not found"}', content_type="application/json")
+  return HttpResponseNotFound('{"detail": "Resource not found"}', content_type="application/json")
 
 def custom_500_view(request):
-  return HttpResponseServerError('{"msg": "Something went wrong while trying to process your request"}', content_type="application/json")
+  return HttpResponseServerError('{"detail": "Something went wrong while trying to process your request"}', content_type="application/json")
 
 handler404 = custom_404_view
 handler500 = custom_500_view
