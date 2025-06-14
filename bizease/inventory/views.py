@@ -4,16 +4,44 @@ from .serializers import InventoryItemSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-
-# class CategoryView(APIView):
-# 	def post
+import math
 
 class InventoryView(APIView):
 	permission_classes = [IsAuthenticated]
+	page_size = 1
+
+	def get_page_param(self, get_obj):
+		page_param = get_obj.get('page')
+		if not page_param or len(get_obj.getlist('page')) != 1:
+			return None
+		try:
+			page_param = int(page_param)
+		except:
+			return None
+		if page_param <= 0:
+			return None
+		return page_param
 	
-	# todo: add pagination
+	# todo: add order_query
 	def get(self, request, **kwargs):
-		inventory_serializer = InventoryItemSerializer(list(Inventory.objects.filter(owner=request.user.id)), many=True)
+		"page_count, next_page, prev_page"
+		page_param = self.get_page_param(request.GET)
+		items_count = Inventory.objects.count()
+
+		if not page_param:
+			inventory_serializer = InventoryItemSerializer(
+				list(Inventory.objects.filter(owner=request.user.id).order_by("id")), 
+				many=True
+			)
+		else:
+			if math.ceil(items_count/self.page_size) < page_param:
+				return Response({"detail": "Page Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+			offset = (page_param-1) * self.page_size
+			inventory_serializer = InventoryItemSerializer(
+				list(Inventory.objects.filter(owner=request.user.id).order_by("id")[offset:offset+self.page_size])
+				many=True
+			)
 		return Response(inventory_serializer.data, status=status.HTTP_200_OK)
 
 	def post(self, request, **kwargs):
@@ -72,4 +100,3 @@ class InventoryItemView(APIView):
 			return Response(
 				{"msg": "Delete operation incomplete. Something went wrong while deleting inventory Item"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
 			)
-
