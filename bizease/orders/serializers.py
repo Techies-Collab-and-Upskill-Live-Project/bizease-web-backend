@@ -26,7 +26,7 @@ class OrderSerializer(serializers.ModelSerializer):
 	def create(self, product_owner):
 		ordered_products = self.validated_data["ordered_products"]
 		if len(ordered_products) == 0:
-			return {"details": {"errors": ["Order must contain at least one Ordered product"]}, "status": 400}
+			return {"detail": ["Order must contain at least one Ordered product"], "status": 400}
 
 		del self.validated_data["ordered_products"] # ordered_products is not a column in Order table
 		new_order = Order(**self.validated_data)
@@ -43,11 +43,11 @@ class OrderSerializer(serializers.ModelSerializer):
 					quantity=product["quantity"]
 				)
 			else: # The same product was added to the order more than once. We don't want that, That's why we have a quantity field
-				return {"details": {"errors": [f"Duplicate Ordered Product: {product['name']}. Use the quantity field "]}, "status": 400}
+				return {"detail": [f"Duplicate Ordered Product: {product['name']}. Use the quantity field to specify multiple items"], "status": 400}
 
 		available_products = Inventory.objects.filter(owner_id=product_owner.id).filter(product_name__in=list(ordered_products_dict.keys()))
 		if len(available_products) == 0:
-			return {"details": {"errors": [f"Ordered items aren't in the inventory!"]}, "status": 400}
+			return {"detail": [f"Ordered items aren't in the inventory!"], "status": 400}
 		errors = []
 		for item in available_products:
 			ordered_product = ordered_products_dict.get(item.product_name)
@@ -61,7 +61,7 @@ class OrderSerializer(serializers.ModelSerializer):
 			item.stock_level -= ordered_product.quantity 
 
 		if errors:
-			return {"details": {"errors": errors}, "status": 400}
+			return {"detail": errors, "status": 400}
 
 		new_order.save()
 		for ordered_product in ordered_products_dict.values():
@@ -71,12 +71,11 @@ class OrderSerializer(serializers.ModelSerializer):
 			new_order.total_price += ordered_product.cummulative_price
 
 		for item in available_products:
-			print(item.product_name, item.stock_level)
 			item.save()
 
 		new_order.save()
 			
-		return {"details": {"msg": "Order created successfully"}, "status": 200}
+		return {"detail": "Order created successfully", "status": 200}
 
 	def update(self, product_owner):
 		"""
@@ -100,14 +99,15 @@ class OrderSerializer(serializers.ModelSerializer):
 		price
 		"""
 		if self.instance.status != "Pending":
-			return {"details": {"errors": ["Only pending orders can be edited"]}, "status": 400}
+			return {"detail": "Only pending orders can be edited", "status": 400}
 
 		self.instance.client_name = self.validated_data.get('client_name', self.instance.client_name)
 		self.instance.client_email = self.validated_data.get('client_email', self.instance.client_email)
 		self.instance.client_phone = self.validated_data.get('client_phone', self.instance.client_phone)
+		self.instance.status = self.validated_data.get('status', self.instance.status)
 
 		self.instance.save()
-		return {"details": {"msg": "Order Updated successfully"}, "status": 200}
+		return {"detail": "Order Updated successfully", "status": 200}
 
 
 	def save(self, product_owner):
@@ -115,5 +115,3 @@ class OrderSerializer(serializers.ModelSerializer):
 			return self.update(product_owner)
 		else:
 			return self.create(product_owner)
-class OrdersArraySerializers(serializers.Serializer):
-	data = OrderSerializer(many=True)

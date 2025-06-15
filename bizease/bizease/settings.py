@@ -41,8 +41,6 @@ ALLOWED_HOSTS = ['*']
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
-APPEND_SLASH = False
-
 INSTALLED_APPS = [
     'accounts',
     'inventory',
@@ -90,10 +88,14 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'bizease.urls'
 
+STATICFILES_DIRS = [
+    BASE_DIR / "static"
+]
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': ['static'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
