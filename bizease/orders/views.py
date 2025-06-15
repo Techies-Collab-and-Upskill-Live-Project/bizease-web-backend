@@ -36,7 +36,11 @@ class OrdersView(APIView):
 			return None
 		return page_param
 
-	# To implement: filter, search and normal get
+	# todo:
+	# add the following get params
+	# query - Orderedproduct_name, client_name (inexact) . Will serve as the search endpoint
+	# status
+	# order - id, order_date, total_price
 	def get(self, request, **kwargs):
 		page_param = self.get_page_param(request.GET)
 
@@ -108,9 +112,9 @@ class SingleOrderView(APIView):
 
 		if order_edits.is_valid():
 			response = order_edits.save(request.user)
-			return Response(response["details"], status=response["status"])
+			return Response({"detail": response["detail"]}, status=response["status"])
 		else:
-			return Response({"detail": order_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+			return Response({"detail": order_edits.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 	def delete(self, request, item_id, **kwargs):
 		try:

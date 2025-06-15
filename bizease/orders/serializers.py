@@ -99,14 +99,15 @@ class OrderSerializer(serializers.ModelSerializer):
 		price
 		"""
 		if self.instance.status != "Pending":
-			return {"details": {"errors": ["Only pending orders can be edited"]}, "status": 400}
+			return {"detail": "Only pending orders can be edited", "status": 400}
 
 		self.instance.client_name = self.validated_data.get('client_name', self.instance.client_name)
 		self.instance.client_email = self.validated_data.get('client_email', self.instance.client_email)
 		self.instance.client_phone = self.validated_data.get('client_phone', self.instance.client_phone)
+		self.instance.status = self.validated_data.get('status', self.instance.status)
 
 		self.instance.save()
-		return {"details": {"msg": "Order Updated successfully"}, "status": 200}
+		return {"detail": "Order Updated successfully", "status": 200}
 
 
 	def save(self, product_owner):
@@ -114,5 +115,3 @@ class OrderSerializer(serializers.ModelSerializer):
 			return self.update(product_owner)
 		else:
 			return self.create(product_owner)
-class OrdersArraySerializers(serializers.Serializer):
-	data = OrderSerializer(many=True)
