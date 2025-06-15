@@ -35,8 +35,13 @@ class InventoryView(APIView):
 		if page_param <= 0:
 			return None
 		return page_param
+	# todo:
+	# add the following get params
+	# query - product_name, category, description (inexact) . Will serve as the search endpoint
+	# category - (exact)
+	# order - id, last_updated, price
+	# add low_stock endpoint
 	
-	# todo: add order_query, filter(by category, status, stock_level), search e.t.c.
 	def get(self, request, **kwargs):
 		page_param = self.get_page_param(request.GET)
 		items_count = Inventory.objects.count() # total number of distinct products in inventory
