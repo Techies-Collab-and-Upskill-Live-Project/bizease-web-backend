@@ -59,7 +59,7 @@ class ProfileView(APIView):
 		dataUpdate = ProfileDataSerializer(request.user, data=request.data, partial=True)
 		if dataUpdate.is_valid():
 			dataUpdate.save()
-			return Response({"detail": "User data updated successful"}, status=status.HTTP_200_OK)
+			return Response({"detail": "User data updated successfully"}, status=status.HTTP_200_OK)
 		else:
 			return Response({"detail": dataUpdate.errors}, status=status.HTTP_400_BAD_REQUEST)
 
