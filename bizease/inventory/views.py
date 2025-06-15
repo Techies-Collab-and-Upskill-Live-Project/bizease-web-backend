@@ -7,6 +7,16 @@ from rest_framework import status
 from django.db.models import Sum, F
 import math
 
+class InventoryStatsView(APIView):
+	permission_classes = [IsAuthenticated]
+	# Inventory.objects.aggregate(total=Sum("stock_level")) # total no of individual items in inventory. Is this what was meant by total products?
+	def get(self, request, **kwargs):
+		data = {
+			"total_stock_value": Inventory.objects.aggregate(total=Sum(F("stock_level") * F("price")))["total"],
+			"low_stock_count": Inventory.objects.filter(stock_level__lte=F("low_stock_threshold")).count(),
+			"total_products":  Inventory.objects.count(),
+		}
+		return Response({"data": data}, status=status.HTTP_200_OK)
 
 class InventoryView(APIView):
 	permission_classes = [IsAuthenticated]
@@ -48,10 +58,6 @@ class InventoryView(APIView):
 				many=True
 			)
 
-		# Inventory.objects.aggregate(total=Sum("stock_level")) # total no of individual items in inventory. Is this what was meant by total products?
-		total_stock_value = Inventory.objects.aggregate(total=Sum(F("stock_level") * F("price")))
-		low_stock_count = Inventory.objects.filter(stock_level__lte=F("low_stock_threshold")).count()
-
 		if page_param and (page_param+1 <= page_count):
 			next_page = page_param + 1
 		else:
@@ -63,12 +69,6 @@ class InventoryView(APIView):
 			prev_page = None
 
 		data = {
-			"stats": {
-				"total_stock_value": total_stock_value,
-				"low_stock_count": low_stock_count,
-				"total_products": items_count,
-			},
-			
 			"page_count": page_count,
 			"next_page": next_page,
 			"prev_page": prev_page,
