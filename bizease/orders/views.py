@@ -5,11 +5,12 @@ from rest_framework.response import Response
 from .models import Order
 from rest_framework import status
 from django.db.models import Sum, F
+import math
 
 
 class OrderStatsView(APIView):
 	permission_classes = [IsAuthenticated]
-	
+
 	def get(self, request, **kwargs):
 		data = {
 			"total_orders": Order.objects.filter(product_owner_id=request.user.id).count(),
@@ -20,12 +21,60 @@ class OrderStatsView(APIView):
 
 class OrdersView(APIView):
 	permission_classes = [IsAuthenticated]
+	page_size = 20
+
+	def get_page_param(self, get_obj):
+		page_param = get_obj.get('page')
+		if not page_param or len(get_obj.getlist('page')) != 1:
+			return None
+		try:
+			page_param = int(page_param)
+		except:
+			return None
+
+		if page_param <= 0:
+			return None
+		return page_param
 
 	# To implement: filter, search and normal get
 	def get(self, request, **kwargs):
+		page_param = self.get_page_param(request.GET)
+
+		if not page_param:
+			page_count = 1
+			serializer = OrderSerializer(
+				list(Order.objects.filter(product_owner_id=request.user.id).order_by("id")), 
+				many=True
+			)
+		else:
+			items_count = Order.objects.count() # total number of distinct Order
+			page_count = math.ceil(items_count/self.page_size)
+			if page_count < page_param:
+				return Response({"detail": "Page Not found", data: None}, status=status.HTTP_404_NOT_FOUND)
+
+			offset = (page_param-1) * self.page_size
+			serializer = OrderSerializer(
+				list(Order.objects.filter(product_owner_id=request.user.id).order_by("id")[offset:offset+self.page_size]),
+				many=True
+			)
+		if page_param and (page_param+1 <= page_count):
+			next_page = page_param + 1
+		else:
+			next_page = None
+
+		if page_param and (page_param-1 >= 1):
+			prev_page = page_param - 1
+		else:
+			prev_page = None
+		data = {
+			"page_count": page_count,
+			"next_page": next_page,
+			"prev_page": prev_page,
+			"length": len(serializer.data),
+			"products": serializer.data
+		}
 		# Tell frontend that id is order_id and they should reformat it to look fancy or whatever
-		serializer = OrderSerializer(list(Order.objects.all()), many=True)
-		return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+		return Response({"data": data}, status=status.HTTP_200_OK)
 
 	def post(self, request, **kwargs):
 		order_serializer = OrderSerializer(data=request.data)
