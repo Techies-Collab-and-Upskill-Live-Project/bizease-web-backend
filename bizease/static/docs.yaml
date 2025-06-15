@@ -46,9 +46,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  $ref: "#/components/schemas/User"
+                $ref: "#/components/schemas/User"
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -72,9 +70,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                $ref: "#/components/schemas/User"
+              $ref: "#/components/schemas/User"
         required: true
       responses:
         '200':
@@ -88,7 +84,9 @@ paths:
                     type: string
                     example: User data updated successfully
         '400':
-          description: Invalid Request Body
+          description: 
+            Invalid Request Body. Response Body is a json object containing a 'detail' 
+            field that maps each invalid field name to an array of errors on why the field is invalid
           content:
             application/json:
               schema:
@@ -130,7 +128,7 @@ paths:
           description: Unexpected Server error while trying to delete a User's data
           $ref: "#/components/errors/Server500"
 
-  /accounts/signup:
+  /accounts/signup/:
     post:
       tags:
         - Auth
@@ -194,7 +192,9 @@ paths:
                           .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
                           .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
         '400':
-          description: Invalid Request Body
+          description: 
+            Invalid Request Body. Response Body is a json object containing a 'detail' field that maps 
+            each invalid field name to an array of errors on why the field is invalid
           content:
             application/json:
               schema:
@@ -215,7 +215,7 @@ paths:
           description: Unexpected server error while trying to create the new user
           $ref: "#/components/errors/Server500"
 
-  /accounts/login:
+  /accounts/login/:
     post:
       tags:
         - Auth
@@ -266,7 +266,9 @@ paths:
                           .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
                           .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
         '400':
-          description: Invalid Request Body
+          description: 
+            Invalid Request Body. Response Body is a json object containing a 'detail' field that maps 
+            each invalid field name to an array of errors on why the field is invalid
           content:
             application/json:
               schema:
@@ -374,6 +376,7 @@ paths:
                   description: name of the product with the most orders
                   type: string
                 revenue:
+                  description: sum of the total price of all the orders for any of a User's products
                   type: string
                 pending_orders:
                   type: array
@@ -399,19 +402,73 @@ paths:
         - User Orders
       summary: Get the Orders that have been made for a User's products
       description: 
-        Gets all the Orders that have been made for an authenticated User's product. 
+        Gets all the Orders that have been made for an authenticated User's product.
+      parameters:
+        - name: page
+          in: query
+          description: 
+            The page number whose orders data is to be retrieved. This allows a client 
+            to get the data in a paginated format.
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: User orders have been retrieved
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Order"
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      page_count:
+                        type: integer
+                        description:
+                          The total number of pages the data is split into. Defaults to '1'
+                          if the 'page' query parameter is not included in the endpoint
+                        example: 1
+                      next_page:
+                        type: integer
+                        minimum: 2
+                        description:
+                          The number of the next page of data. defaults to null if this response
+                          is the last page or the 'page' query parameter is not included in the endpoint
+                        nullable: true
+                        example: 2
+                      prev_page:
+                        type: integer
+                        description:
+                          The number of the previous page of data. defaults to null if this response
+                          is the first page or the 'page' query parameter is not included in the endpoint
+                        nullable: true
+                        example: 1
+                      length:
+                        type: integer
+                        description: The length of the 'orders' array that's also part of the response body
+                        exmple: 20
+                      orders:
+                        description: An array of Orders for a User's product
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Order"
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
+        '404':
+          description: 
+            No page was found for the value of the 'page' query parameter.
+            The parameter is formatted improperly or out of bounds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Page Not found
+
         '500':
           description: Unexpected server error
           $ref: "#/components/errors/Server500"
@@ -446,23 +503,30 @@ paths:
                     type: string
                     example: Order created successfully
         '400':
-          description: Invalid Request Body
+          description: 
+            Invalid Request Body. Response Body is a json object containing a 'detail' field that maps 
+            each invalid field name to an array of errors on why the field is invalid
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  detail:
-                    type: object
-                    additionalproperties:
-                      type: array
-                      items:
-                        type: string
-                    example:
-                      client_name:
-                        - This field is required
-                      ordered_products:
-                        - This field is required
+                oneOf:
+                  - type: object
+                    properties:
+                      detail:
+                        type: object
+                        additionalproperties:
+                          type: array
+                          items:
+                            type: string
+                        example:
+                          client_name:
+                            - This field is required
+                          ordered_products:
+                            - This field is required
+                  - type: array
+                    items:
+                      type: string
+                      example: Order must contain at least one Ordered product
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -574,6 +638,38 @@ paths:
         '500':
           description: Unexpected server error
           $ref: "#/components/errors/Server500"
+  /orders/stats:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Get statistics about Orders made for a User's products
+      description: 
+        Gets Total Orders, Total Revenue and Pending Orders of a User's products
+      responses:
+        '200':
+          description: Data Retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_orders:
+                    type: integer
+                    example: 479
+                  total_revenue:
+                    type: integer
+                    example: 4790000
+                  pending_orders:
+                    type: integer
+                    example: 150
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
 
   /inventory/:
     get:
@@ -583,17 +679,69 @@ paths:
         - User Inventory
       summary: Get the product in a User's Inventory
       description: 
-        Retrieves all the orders in an authenticated User's Inventory
+        Retrieves Products in an authenticated User's Inventory
+      parameters:
+        - name: page
+          in: query
+          description: 
+            The page number whose orders data is to be retrieved. This allows a client 
+            to get the data in a paginated format.
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: Inventory products retrieved successfully
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/InventoryItem"
-        
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      page_count:
+                        type: integer
+                        description:
+                          The total number of pages the data is split into. Defaults to '1'
+                          if the 'page' query parameter is not included in the endpoint
+                        example: 1
+                      next_page:
+                        type: integer
+                        minimum: 2
+                        description:
+                          The number of the next page of data. defaults to null if this response
+                          is the last page or the 'page' query parameter is not included in the endpoint
+                        nullable: true
+                        example: 2
+                      prev_page:
+                        type: integer
+                        description:
+                          The number of the previous page of data. defaults to null if this response
+                          is the first page or the 'page' query parameter is not included in the endpoint
+                        nullable: true
+                        example: 1
+                      length:
+                        type: integer
+                        description: The length of the 'products' array that's also part of the response body
+                        exmple: 20
+                      products:
+                        description: An array products in a User's Inventory
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/InventoryItem"
+        '404':
+          description: 
+            No page was found for the value of the 'page' query parameter.
+            The parameter is formatted improperly or out of bounds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail: 
+                    type: string
+                    example: Page Not found
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -634,7 +782,9 @@ paths:
                     type: string
                     example: New Item(s) added to inventory
         '400':
-          description: Invalid Request Body
+          description: 
+            Invalid Request Body. Response Body is a json object containing a 'detail' 
+            field that maps each invalid field name to an array of errors on why the field is invalid
           content:
             application/json:
               schema:
@@ -868,37 +1018,44 @@ components:
             $ref: "#components/schemas/OrderedProduct"
 
     User:
-      business_name:
-        type: string
-      full_name:
-        type: string
-      email:
-        type: string
-      business_type:
-        type: string
-      country:
-        type: string
-      currency:
-        type: string # change to an enum
-      state:
-        type: string
-      rcv_mail_for_new_orders:
-        type: string
-      rcv_mail_for_low_stocks:
-        type: string
-      phone:
-        type: string
-      business_phone:
-        type: string
-      business_address:
-        type: string
-      rcv_mail_notification:
-        type: string
-      rcv_msg_notification:
-        type: string
-      default_order_status:
-        type: string
-      language:
-        type: string
-      low_stock_threshold:
-        type: string
+      type: object
+      properties:
+        business_name:
+          type: string
+        full_name:
+          type: string
+        email:
+          type: string
+        business_type:
+          type: string
+        country:
+          type: string
+        currency:
+          type: string
+          desctiption: Can only be NGN, GBP or USD
+          enum:
+            - NGN
+            - GBP
+            - USD
+        state:
+          type: string
+        rcv_mail_for_new_orders:
+          type: boolean
+        rcv_mail_for_low_stocks:
+          type: boolean
+        phone:
+          type: string
+        business_phone:
+          type: string
+        business_address:
+          type: string
+        rcv_mail_notification:
+          type: boolean
+        rcv_msg_notification:
+          type: boolean
+        default_order_status:
+          type: string
+        language:
+          type: string
+        low_stock_threshold:
+          type: integer
