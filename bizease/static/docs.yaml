@@ -1,0 +1,904 @@
+openapi: 3.0.4
+info:
+  title: Bizease backend Web Api docs - OpenAPI 3.0
+  description: |
+    BizEase is a web app that helps businesses manage and optimize their sales processes, 
+    from inventory management to order management. It includes features like order tracking, 
+    pipeline management, reporting, and analytics. It aims to streamline sales activities, 
+    improve team collaboration, and ultimately boost sales performance
+    
+    ## Authentication
+    Some of the API endpoints can only be used by authorized users. Such endpoints require http
+    bearer authentication. To create/get an API token, the user must login or signup using the 
+    appropriate endpoints, An 'access' and a 'refresh' token will be returned in the response body.
+    When an authenticated request is to be made, The API token is then included in the Authorization 
+    header of the HTTP request, formatted as `Authorization: Bearer <token>`.
+  contact:
+    email: egbebitimi121@gmail.com
+  version: 1.0.0
+servers:
+  - url: https://change-after-deploying.com/v1/
+tags:
+  - name: Auth
+    description: Authorization and Authentication
+  - name: User Profile
+    description: Creating, Accessing and modifying a User's Profile
+  - name: User Inventory
+    description: Creating, Accessing and modifying a User's Inventory
+  - name: User Orders
+    description: Creating, Accessing and modifying Orders created for a Users product
+  - name: User Dashboard
+    description: Accessing data related to a User's dashboard
+
+paths:
+  /accounts/:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Profile
+      summary: Get a User's details
+      description: 
+        Gets the details of an Authenticated User from the Server
+      responses:
+        '200':
+          description: User data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  $ref: "#/components/schemas/User"
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected Server error
+          $ref: "#/components/errors/Server500"
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Profile
+      summary: Update a User's details
+      description: 
+        Updates one or more details of an existing authenticated user. Essentially 
+        all of a User's details can be changed except for password. The User details
+        to be updated is identified via the jwt Bearer token.
+      requestBody:
+        description: 
+          Updates a user's data with a key-value pair object, where each key 
+          is a user detail and it's corresponding value is the new updated value
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                $ref: "#/components/schemas/User"
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: User data updated successfully
+        '400':
+          description: Invalid Request Body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: object
+                    additionalproperties:
+                      type: array
+                      items:
+                        type: string
+                    example:
+                      full_name:
+                        - This field may not be blank
+        '500':
+          description: Unexpected Server error while trying to update a User's details
+          $ref: "#/components/errors/Server500"
+    delete:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Profile
+      summary: Deletes a User's data
+      description: 
+        Deletes all of a User's data includinag inventory and orders data that's stored 
+        on the server.The User data to be updated is identified via the jwt Bearer token.
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: User data deleted successfully
+        '500':
+          description: Unexpected Server error while trying to delete a User's data
+          $ref: "#/components/errors/Server500"
+
+  /accounts/signup:
+    post:
+      tags:
+        - Auth
+      summary: Registers a new User on the server.
+      description: 
+        Validates the body of the request and creates a new user in the database. It also sends an
+        http response with a json request body containing a refresh and access jwt token
+      requestBody:
+        description: Create a new user in the database with the validated request body
+        content:
+          application/json:
+            schema:
+              required:
+                - business_name
+                - full_name
+                - email
+                - password
+                - business_type
+              type: object
+              properties:
+                business_name:
+                  type: string
+                full_name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                country:
+                  type: string
+                currency:
+                  type: string # change to an enum
+                state:
+                  type: string
+                business_type:
+                  type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: User Created successfully
+                  data:
+                    type: object
+                    properties:
+                      access:
+                        type: string
+                        example: 
+                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
+                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+                      refresh:
+                        type: string
+                        example: 
+                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
+                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+        '400':
+          description: Invalid Request Body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: object
+                    additionalproperties:
+                      type: array
+                      items:
+                        type: string
+                    example:
+                      business_name:
+                        - This field is required
+                      email:
+                        - custom user with this Email Address already exists.
+        '500':
+          description: Unexpected server error while trying to create the new user
+          $ref: "#/components/errors/Server500"
+
+  /accounts/login:
+    post:
+      tags:
+        - Auth
+      summary: Logs in an existing User on the server.
+      description: 
+        Logs in a User using the email and password fields in the request body. The email and password
+        must belong to an existing user. The http json response body also contains a refresh and 
+        access jwt token used to maintain the newly logged-in User's session
+      requestBody:
+        description: Create a new user in the database with the validated request body
+        content:
+          application/json:
+            schema:
+              required:
+                - email
+                - password
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Login successful
+                  data:
+                    type: object
+                    properties:
+                      access:
+                        type: string
+                        example: 
+                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
+                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+                      refresh:
+                        type: string
+                        example: 
+                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
+                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+        '400':
+          description: Invalid Request Body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: object
+                    additionalproperties:
+                      type: array
+                      items:
+                        type: string
+                    example:
+                      email:
+                        - This field is required
+                      password:
+                        - This field is required
+        '500':
+          description: Unexpected Server Error while trying to log the user in
+          $ref: "#/components/errors/Server500"
+  /token/refresh/:
+    post:
+      tags:
+        - Auth
+      summary: Get a new refresh and access token
+      description:
+        Gets a new a access and refresh token. The refresh token used to get this new access token
+        will become valid if the request is successfu;
+      requestBody:
+        description: Generate a new access and refresh token
+        content:
+          application/json:
+            schema:
+              required:
+                - refresh
+              type: object
+              properties:
+                refresh:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      access:
+                        type: string
+                        example: 
+                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
+                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+                      refresh:
+                        type: string
+                        example: 
+                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
+                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+
+        '400':
+          description: Invalid Request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  refresh:
+                    type: array
+                    items:
+                      type: string
+                      example:  This field is required
+        '500':
+          description: unexpected server error while trying to refresh the token
+          $ref: "#/components/errors/Server500"
+
+  /dashboard-data/:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Dashboard
+      summary: Data to be displayed on the User's dashboard
+      description: 
+        Gets data related to the overview of a User's business. The data returned by this 
+        endpoint is most likely to be displayed on the User's dashboard
+      responses:
+        '200':
+          description: data retrieved successfully
+          content:
+            application/json:
+            schema:
+              type: object
+              properties:
+                business_name:
+                  type: string
+                currency:
+                  type: string
+                language:
+                  type: string
+                top_Selling_product:
+                  description: name of the product with the most orders
+                  type: string
+                revenue:
+                  type: string
+                pending_orders:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Order"
+                low_stock_items:
+                  type: array
+                  items:
+                    $ref: "#/componenets/schemas/InventoryItem"
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: unexpected server error
+          $ref: "#/components/errors/Server500"
+
+
+  /orders/:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Get the Orders that have been made for a User's products
+      description: 
+        Gets all the Orders that have been made for an authenticated User's product. 
+      responses:
+        '200':
+          description: User orders have been retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+        
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Create new order(s)
+      description: 
+        Create new orders for an authenticated User's product. The ordered product must exist 
+        in the inventory and the ordered product's quantity must not be greater than the corresponding
+        inventory's product stock_level
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - client_name
+              $ref: "#/components/schemas/Order"
+        required: true
+      responses:
+        '200':
+          description: New Order has been created and saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Order created successfully
+        '400':
+          description: Invalid Request Body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: object
+                    additionalproperties:
+                      type: array
+                      items:
+                        type: string
+                    example:
+                      client_name:
+                        - This field is required
+                      ordered_products:
+                        - This field is required
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+    
+  /orders/{item_id}:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Get a single Order for a User's product
+      description: 
+        Gets a single Order for a User's product by the order's id. The request
+        must be made by the authenticated User.
+      parameters:
+        - name: item_id
+          in: path
+          description: The id of the order to be retrieved
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+        
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Edit a User's product order
+      description: 
+        Edit a User's product order
+      parameters:
+        - name: item_id
+          in: path
+          description: The id of the order to be updated
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Order"
+        required: true
+      responses:
+        '200':
+          description: The Order has been updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Order Updated successfully
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+    delete:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Deletes an Order for a User's product
+      description: 
+        Deletes an Order for a user's orders by the id
+      parameters:
+        - name: item_id
+          in: path
+          description: The id of the order to be deleted
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Order deleted successfully
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+  /inventory/:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Inventory
+      summary: Get the product in a User's Inventory
+      description: 
+        Retrieves all the orders in an authenticated User's Inventory
+      responses:
+        '200':
+          description: Inventory products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InventoryItem"
+        
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+       
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Inventory
+      summary: Add a new product to a User's Inventory
+      description: 
+        Add a new product to a User's Inventory. The User must be authenticated and a 
+        product name can't be shared among different products in the inventory
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - product_name
+                - stock_level
+                - price
+              type: array
+              items:
+                $ref: "#/components/schemas/InventoryItem"
+        required: true
+      responses:
+        '200':
+          description: New Item(s) have been added to a User's Inventory
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: New Item(s) added to inventory
+        '400':
+          description: Invalid Request Body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: object
+                    additionalproperties:
+                      type: array
+                      items:
+                        type: string
+                    example:
+                      product_name:
+                        - This field is required
+                      ordered_products:
+                        - This field is required
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+  /inventory/{item_id}:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Inventory
+      summary: Get a single Item from a User's inventory
+      description: 
+        Gets a single Item from a User's inventory using the items's id. The request
+        must be made by the authenticated User.
+      parameters:
+        - name: item_id
+          in: path
+          description: The id of the Inventory item to be retrieved
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+        
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Inventory
+      summary: Edit a User's Inventory item details
+      description: 
+        Edit a User's Inventory item details using the item's id
+      parameters:
+        - name: item_id
+          in: path
+          description: The id of the Inventory item to be edited
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryItem"
+        required: true
+      responses:
+        '200':
+          description: The Inventory item has been updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Inventory item Updated successfully
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+    delete:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Inventory
+      summary: Deletes a User's Inventory item
+      description: 
+       Deletes a User's Inventory item using the items's id
+      parameters:
+        - name: item_id
+          in: path
+          description: The id of the Inventory item to be deleted
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Inventory item deleted successfully
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+    
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  errors:
+    Route404:
+      content:
+        application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string
+              example: Resource not found
+    Error401:
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/NoToken401"
+              - $ref: "#/components/schemas/InvalidToken401"
+
+    Server500:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+                example: Something went wrong while trying to process your request
+
+  Password_field:
+    password:
+      type: string
+
+  schemas:
+    NoToken401:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: Authentication credentials were not provided.
+
+    InvalidToken401:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: Given token not valid for any token type
+        # there are still more properties but I don't want to document what I don't fully understand
+
+    InventoryItem:
+      type: object
+      properties:
+        owner:
+          type: string
+        product_name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        stock_level:
+          type: integer
+        low_stock_threshold:
+          type: integer
+        price:
+          type: integer
+        last_updated:
+          type: string
+
+    OrderedProduct:
+      type: object
+      properties:
+        name:
+          type: string
+        order_id:
+          type: integer
+        quantity:
+          type: integer
+        price:
+          type: integer
+        cummulative_price:
+          type: integer
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        client_name:
+          type: string
+        client_email:
+          type: string
+        client_phone:
+          type: string
+        status:
+          type: string
+        ordered_products:
+          type: array
+          items:
+            $ref: "#components/schemas/OrderedProduct"
+
+    User:
+      business_name:
+        type: string
+      full_name:
+        type: string
+      email:
+        type: string
+      business_type:
+        type: string
+      country:
+        type: string
+      currency:
+        type: string # change to an enum
+      state:
+        type: string
+      rcv_mail_for_new_orders:
+        type: string
+      rcv_mail_for_low_stocks:
+        type: string
+      phone:
+        type: string
+      business_phone:
+        type: string
+      business_address:
+        type: string
+      rcv_mail_notification:
+        type: string
+      rcv_msg_notification:
+        type: string
+      default_order_status:
+        type: string
+      language:
+        type: string
+      low_stock_threshold:
+        type: string
