@@ -75,7 +75,7 @@ class OrdersView(APIView):
 			"next_page": next_page,
 			"prev_page": prev_page,
 			"length": len(serializer.data),
-			"products": serializer.data
+			"orders": serializer.data
 		}
 		# Tell frontend that id is order_id and they should reformat it to look fancy or whatever
 		return Response({"data": data}, status=status.HTTP_200_OK)
