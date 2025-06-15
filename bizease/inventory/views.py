@@ -26,21 +26,21 @@ class InventoryView(APIView):
 			return None
 		return page_param
 	
-	# todo: add order_query, filter, search e.t.c.
+	# todo: add order_query, filter(by category, status, stock_level), search e.t.c.
 	def get(self, request, **kwargs):
-		", next_page, prev_page"
 		page_param = self.get_page_param(request.GET)
+		items_count = Inventory.objects.count() # total number of distinct products in inventory
 
 		if not page_param:
+			page_count = 1
 			inventory_serializer = InventoryItemSerializer(
 				list(Inventory.objects.filter(owner=request.user.id).order_by("id")), 
 				many=True
 			)
 		else:
-			items_count = Inventory.objects.count() # total number of distinct products in inventory
 			page_count = math.ceil(items_count/self.page_size)
 			if page_count < page_param:
-				return Response({"detail": "Page Not found", data: None}, status=status.HTTP_404_NOT_FOUND)
+				return Response({"detail": "Page Not found", "data": None}, status=status.HTTP_404_NOT_FOUND)
 
 			offset = (page_param-1) * self.page_size
 			inventory_serializer = InventoryItemSerializer(
@@ -48,7 +48,7 @@ class InventoryView(APIView):
 				many=True
 			)
 
-		# Inventory.objects.aggregate(total=Sum("stock_level")) # total no of individul items in inventory. Is this what was meant by total products?
+		# Inventory.objects.aggregate(total=Sum("stock_level")) # total no of individual items in inventory. Is this what was meant by total products?
 		total_stock_value = Inventory.objects.aggregate(total=Sum(F("stock_level") * F("price")))
 		low_stock_count = Inventory.objects.filter(stock_level__lte=F("low_stock_threshold")).count()
 
@@ -72,6 +72,7 @@ class InventoryView(APIView):
 			"page_count": page_count,
 			"next_page": next_page,
 			"prev_page": prev_page,
+			"length": len(inventory_serializer.data),
 			"products": inventory_serializer.data
 		}
 		return Response({"data": data}, status=status.HTTP_200_OK)
