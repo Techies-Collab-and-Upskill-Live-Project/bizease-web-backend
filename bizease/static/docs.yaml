@@ -354,7 +354,7 @@ paths:
         - bearerAuth: []
       tags:
         - User Dashboard
-      summary: Data to be displayed on the User's dashboard
+      summary: Get data to be displayed on the User's dashboard
       description: 
         Gets data related to the overview of a User's business. The data returned by this 
         endpoint is most likely to be displayed on the User's dashboard
@@ -363,29 +363,29 @@ paths:
           description: data retrieved successfully
           content:
             application/json:
-            schema:
-              type: object
-              properties:
-                business_name:
-                  type: string
-                currency:
-                  type: string
-                language:
-                  type: string
-                top_Selling_product:
-                  description: name of the product with the most orders
-                  type: string
-                revenue:
-                  description: sum of the total price of all the orders for any of a User's products
-                  type: string
-                pending_orders:
-                  type: array
-                  items:
-                    $ref: "#/components/schemas/Order"
-                low_stock_items:
-                  type: array
-                  items:
-                    $ref: "#/components/schemas/InventoryItem"
+              schema:
+                type: object
+                properties:
+                  business_name:
+                    type: string
+                  currency:
+                    type: string
+                  language:
+                    type: string
+                  top_Selling_product:
+                    description: name of the product with the most orders
+                    type: string
+                  revenue:
+                    description: sum of the total price of all the orders for any of a User's products
+                    type: integer
+                  pending_orders:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Order"
+                  low_stock_items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InventoryItem"
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
