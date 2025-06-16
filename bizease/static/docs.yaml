@@ -109,7 +109,7 @@ paths:
         - bearerAuth: []
       tags:
         - User Profile
-      summary: Deletes a User's data
+      summary: Delete a User's data
       description: 
         Deletes all of a User's data includinag inventory and orders data that's stored 
         on the server.The User data to be updated is identified via the jwt Bearer token.
@@ -132,7 +132,7 @@ paths:
     post:
       tags:
         - Auth
-      summary: Registers a new User on the server.
+      summary: Register a new User on the server.
       description: 
         Validates the body of the request and creates a new user in the database. It also sends an
         http response with a json request body containing a refresh and access jwt token
@@ -385,7 +385,7 @@ paths:
                 low_stock_items:
                   type: array
                   items:
-                    $ref: "#/componenets/schemas/InventoryItem"
+                    $ref: "#/components/schemas/InventoryItem"
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -478,7 +478,7 @@ paths:
         - bearerAuth: []
       tags:
         - User Orders
-      summary: Create new order(s)
+      summary: Create new Order
       description: 
         Create new orders for an authenticated User's product. The ordered product must exist 
         in the inventory and the ordered product's quantity must not be greater than the corresponding
@@ -882,7 +882,7 @@ paths:
         - bearerAuth: []
       tags:
         - User Inventory
-      summary: Deletes a User's Inventory item
+      summary: Delete a User's Inventory item
       description: 
        Deletes a User's Inventory item using the items's id
       parameters:
