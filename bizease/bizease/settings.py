@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'inventory',
     'orders',
     'dashboard',
+    'reports',
     "corsheaders",
     'rest_framework',
     'rest_framework_simplejwt',

@@ -9,6 +9,7 @@ urlpatterns = [
   re_path(r'^(?P<version>(v1))/orders/', include('orders.urls')),
   re_path(r'^(?P<version>(v1))/inventory/', include('inventory.urls')),
   re_path(r'^(?P<version>(v1))/dashboard/', include('dashboard.urls')),
+  re_path(r'^(?P<version>(v1))/reports/', include('reports.urls')),
   re_path(r'^(?P<version>(v1))/token/refresh/$', TokenRefreshView.as_view(), name='token_refresh')
 ]
 
