@@ -58,7 +58,8 @@ python manage.py migrate
 ```bash
 python manage.py runserver
 ```
-Once the server is running, open your browser and navigate to `http://localhost:8000/` to view a web page without errors.
+Once the server is running, open your browser and navigate to `http://localhost:8000/api-docs` to view the apis 
+documentation and also confirm the server is working
 
 In case of any issue, please visit the official [django docs](https://docs.djangoproject.com/en/5.2/) or the official [python  docs](https://docs.python.org/3/) for help
 
@@ -70,7 +71,7 @@ the basic directory structure of an app, so you can focus on writing code rather
 
 To create your app, make sure you’re in the same directory as manage.py and type this command:
 ```bash
-	python manage.py startapp polls
+python manage.py startapp polls
 ```
 
 ## Running unit tests
