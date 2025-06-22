@@ -11,6 +11,25 @@ class ProfileDataSerializer(serializers.ModelSerializer):
             'business_address','rcv_mail_notification', 'rcv_msg_notification', 'default_order_status',
             'language', 'low_stock_threshold'
         ]
+        read_only_fields = ['email']
+
+    def validate(self, data):
+        expected_validated_data = {} # will be used to hold only values from Meta.fields
+        good = True
+
+        for field in self.Meta.fields:
+            field_value = self.initial_data.get(field)
+            if field_value and field not in self.Meta.read_only_fields:
+                expected_validated_data[field] = field_value
+                del self.initial_data[field]
+
+        for key in self.initial_data:
+            self.initial_data[key] = ["Unexpected field"]
+            good = False
+
+        if not good:
+            return {"field_errors": self.initial_data}
+        return data
         
 class SignUpDataSerializer(serializers.ModelSerializer):
     class Meta:

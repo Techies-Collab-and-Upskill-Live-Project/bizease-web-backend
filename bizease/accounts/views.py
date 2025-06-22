@@ -21,6 +21,8 @@ def get_tokens_for_user(user):
 """
 {"business_name ": "", "full_name": "", "email": "", "business_email": "", "currency": "", 
 "business_type": "", "password": "", "country": "", "state": "", "low_stock_threshold": 0}
+
+https://adedamola.pythonanywhere.com/
 """
 
 class SignUpView(APIView):
@@ -31,7 +33,7 @@ class SignUpView(APIView):
 		else:
 			newUser = serializer.save()
 		tokens = get_tokens_for_user(newUser)
-		return Response({"detail": "User Created successfully", "data": tokens}, status=status.HTTP_200_OK)
+		return Response({"detail": "User Created successfully", "data": tokens}, status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
@@ -58,7 +60,9 @@ class ProfileView(APIView):
 	def put(self, request, **kwargs):
 		dataUpdate = ProfileDataSerializer(request.user, data=request.data, partial=True)
 		if dataUpdate.is_valid():
-			dataUpdate.save()
+			if dataUpdate.validated_data.get("field_errors"):
+				return Response({"detail": dataUpdate.validated_data["field_errors"]}, status=status.HTTP_200_OK)
+			result = dataUpdate.save()
 			return Response({"detail": "User data updated successfully"}, status=status.HTTP_200_OK)
 		else:
 			return Response({"detail": dataUpdate.errors}, status=status.HTTP_400_BAD_REQUEST)
