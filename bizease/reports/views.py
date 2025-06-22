@@ -41,4 +41,4 @@ class ReportDownloadView(APIView):
         report = Report.objects.get(pk=pk, created_by=request.user)
         if not report.file:
             return Response({"error: File not found",}, status=status.HTTP_404_NOT_FOUND)
-        return FileResponse(report.file.open(), as_attachment==True)
+        return FileResponse(report.file.open(), as__attachment==True)

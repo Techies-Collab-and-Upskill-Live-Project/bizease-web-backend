@@ -8,7 +8,7 @@ class ReportSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'email', 'created_at', 'updated_at', 'report_type']
         read_only_fields = ['id', 'created_at', 'updated_at']
     def create(self, validated_data):
-        report = Report.objects.create(**validated_data)
+        report = Report.objects.create(*validated_data)
         return report
 
 
