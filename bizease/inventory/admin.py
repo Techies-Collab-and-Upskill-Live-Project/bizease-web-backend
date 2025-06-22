@@ -1,6 +1,5 @@
 from django.contrib import admin
-from .models import Inventory, Category
+from .models import Inventory
 
 
 admin.site.register(Inventory)
-admin.site.register(Category)
