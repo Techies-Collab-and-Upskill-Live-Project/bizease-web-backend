@@ -1,4 +1,5 @@
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
 from .serializers import OrderSerializer
 from rest_framework.response import Response
@@ -10,6 +11,7 @@ import math
 
 class OrderStatsView(APIView):
 	permission_classes = [IsAuthenticated]
+	parser_classes = [JSONParser]
 
 	def get(self, request, **kwargs):
 		data = {
@@ -20,6 +22,7 @@ class OrderStatsView(APIView):
 		return Response({"data": data}, status=status.HTTP_200_OK)
 
 class OrdersView(APIView):
+	parser_classes = [JSONParser]
 	permission_classes = [IsAuthenticated]
 	page_size = 20
 
@@ -90,6 +93,7 @@ class OrdersView(APIView):
 
 
 class SingleOrderView(APIView):
+	parser_classes = [JSONParser]
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request, item_id, **kwargs):

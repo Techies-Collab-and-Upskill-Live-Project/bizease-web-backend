@@ -2,6 +2,7 @@ from .models import Inventory
 from rest_framework.views import APIView
 from .serializers import InventoryItemSerializer
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Sum, F
@@ -13,6 +14,8 @@ import math
 
 class InventoryStatsView(APIView):
 	permission_classes = [IsAuthenticated]
+	parser_classes = [JSONParser]
+	
 	# Inventory.objects.aggregate(total=Sum("stock_level")) # total no of individual items in inventory. Is this what was meant by total products?
 	def get(self, request, **kwargs):
 		data = {
@@ -24,7 +27,24 @@ class InventoryStatsView(APIView):
 
 class InventoryView(APIView):
 	permission_classes = [IsAuthenticated]
+	parser_classes = [JSONParser]
 	page_size = 20
+
+	def get_query_param(self, get_obj):
+		# query - searches thru product_name, category, description (inexact) . Will serve as the search endpoint
+		pass
+
+	def get_category_param(self, get_obj):
+		# category - (exact)
+		pass
+
+	def get_ordering_param(self, get_obj):
+		# order by - id, last_updated, price
+		pass
+
+	def get_low_stock_param(self, get_obj):
+		# add low_stock endpoint
+		pass
 
 	def get_page_param(self, get_obj):
 		page_param = get_obj.get('page')
@@ -39,12 +59,6 @@ class InventoryView(APIView):
 		if page_param <= 0:
 			return None
 		return page_param
-	# todo:
-	# add the following get params
-	# query - product_name, category, description (inexact) . Will serve as the search endpoint
-	# category - (exact)
-	# order - id, last_updated, price
-	# add low_stock endpoint
 	
 	def get(self, request, **kwargs):
 		page_param = self.get_page_param(request.GET)
@@ -97,6 +111,7 @@ class InventoryView(APIView):
 
 class InventoryItemView(APIView):
 	permission_classes = [IsAuthenticated]
+	parser_classes = [JSONParser]
 
 	def get(self, request, item_id, **kwargs):
 		try:

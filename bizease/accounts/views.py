@@ -1,4 +1,3 @@
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework.parsers import JSONParser
 from .models import CustomUser
 from .serializers import SignUpDataSerializer, LoginDataSerializer, ProfileDataSerializer
@@ -26,6 +25,8 @@ https://adedamola.pythonanywhere.com/
 """
 
 class SignUpView(APIView):
+	parser_classes = [JSONParser]
+
 	def post(self, request, **kwargs):
 		serializer = SignUpDataSerializer(data=request.data)
 		if not serializer.is_valid():
@@ -37,6 +38,8 @@ class SignUpView(APIView):
 
 
 class LoginView(APIView):
+	parser_classes = [JSONParser]
+
 	def post(self, request, **kwargs):
 		serializer = LoginDataSerializer(data=request.data)
 
@@ -53,6 +56,8 @@ class LoginView(APIView):
 
 class ProfileView(APIView):
 	permission_classes = [IsAuthenticated]
+	parser_classes = [JSONParser]
+
 	def get(self, request, **kwargs):
 		userProfileDict = ProfileDataSerializer(request.user).data
 		return Response({"data": userProfileDict}, status=status.HTTP_200_OK)
@@ -78,6 +83,8 @@ class ProfileView(APIView):
 
 class LogoutView(APIView):
 	permission_classes = [IsAuthenticated]
+	parser_classes = [JSONParser]
+
 	def delete(self, request, **kwargs):
 		# remove the token
 		return Response({"detail": "User logged out"}, status=status.HTTP_200_OK)

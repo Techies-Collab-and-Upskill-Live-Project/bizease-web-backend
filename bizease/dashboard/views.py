@@ -7,9 +7,11 @@ from django.db.models import Sum, F
 from orders.serializers import OrderSerializer
 from inventory.serializers import InventoryItemSerializer
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import JSONParser
 
 # todo: add support for query params to specify pending_orders and low_stock_items count expected
 class DashBoardView(APIView):
+	parser_classes = [JSONParser]
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request, **kwargs):
