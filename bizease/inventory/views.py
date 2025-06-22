@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 from rest_framework import status
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Q
 import math
 
 """
@@ -29,57 +29,69 @@ class InventoryView(APIView):
 	permission_classes = [IsAuthenticated]
 	parser_classes = [JSONParser]
 	page_size = 20
+	curr_queryset = None
 
-	def get_query_param(self, get_obj):
-		# query - searches thru product_name, category, description (inexact) . Will serve as the search endpoint
-		pass
+	def filter_by_query_param(self):
+		# query - searches thru product_name and description (inexact) . Will serve as the search endpoint
+		query_str = self.request.GET.get('query')
+		if not query_str or len(self.request.GET.getlist('query')) != 1:
+			return self
+		self.curr_queryset = self.curr_queryset.filter(
+			Q(product_name__icontains=query_str) | Q(description__icontains=query_str)
+		)
+		return self
 
-	def get_category_param(self, get_obj):
-		# category - (exact)
-		pass
+	def filter_by_category_param(self):
+		category = self.request.GET.get('category')
+		if not category or len(self.request.GET.getlist('category')) != 1:
+			return self
 
-	def get_ordering_param(self, get_obj):
-		# order by - id, last_updated, price
-		pass
+		self.curr_queryset = self.curr_queryset.filter(category=category)
+		return self
 
-	def get_low_stock_param(self, get_obj):
-		# add low_stock endpoint
-		pass
+	def order_by_query(self):
+		valid_values  = ["id", "-id", "last_updated", "-last_updated", "-price", "price"]
 
-	def get_page_param(self, get_obj):
-		page_param = get_obj.get('page')
-		if not page_param or len(get_obj.getlist('page')) != 1:
+		order_query = self.request.GET.get('order')
+		if order_query not in valid_values or len(self.request.GET.getlist('order')) != 1:
+			return self
+
+		self.curr_queryset = self.curr_queryset.order_by(order_query)
+		return self
+
+	def get_page_param(self):
+		page_param = self.request.GET.get('page')
+		if not page_param or len(self.request.GET.getlist('page')) != 1:
 			return None
-
 		try:
-			page_param = int(page_param)
+			return int(page_param)
 		except:
 			return None
 
-		if page_param <= 0:
-			return None
-		return page_param
-	
-	def get(self, request, **kwargs):
-		page_param = self.get_page_param(request.GET)
-		items_count = Inventory.objects.count() # total number of distinct products in inventory
+	def filter_low_Stock(self):
+		if 'low_stock' not in self.request.GET:
+			return self
 
-		if not page_param:
-			page_count = 1
-			inventory_serializer = InventoryItemSerializer(
-				list(Inventory.objects.filter(owner=request.user.id).order_by("id")), 
-				many=True
-			)
-		else:
-			page_count = math.ceil(items_count/self.page_size)
-			if page_count < page_param:
+		self.curr_queryset = self.curr_queryset.filter(stock_level__lte=F("low_stock_threshold"))
+		return self
+
+	def get(self, request, **kwargs):
+		self.curr_queryset = Inventory.objects.filter(owner=request.user.id)
+		self.filter_by_query_param().filter_by_category_param().filter_low_Stock().order_by_query()
+
+		page_param = self.get_page_param()
+
+		if page_param:
+			page_count = math.ceil(len(self.curr_queryset)/self.page_size)
+			if (page_count < page_param) or (page_param <= 0):
 				return Response({"detail": "Page Not found", "data": None}, status=status.HTTP_404_NOT_FOUND)
 
 			offset = (page_param-1) * self.page_size
-			inventory_serializer = InventoryItemSerializer(
-				list(Inventory.objects.filter(owner=request.user.id).order_by("id")[offset:offset+self.page_size]),
-				many=True
-			)
+			self.curr_queryset = self.curr_queryset[offset:offset+self.page_size]
+		else:
+			page_count = 1
+		inventory_serializer = InventoryItemSerializer(list(self.curr_queryset), many=True)
+
 
 		if page_param and (page_param+1 <= page_count):
 			next_page = page_param + 1
