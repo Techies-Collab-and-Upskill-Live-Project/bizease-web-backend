@@ -7,14 +7,18 @@ from rest_framework import status
 from django.db.models import Sum, F
 import math
 
+"""
+{"product_name": "Cup", "description": "Drink Water", "price": "10000"}
+"""
+
 class InventoryStatsView(APIView):
 	permission_classes = [IsAuthenticated]
 	# Inventory.objects.aggregate(total=Sum("stock_level")) # total no of individual items in inventory. Is this what was meant by total products?
 	def get(self, request, **kwargs):
 		data = {
-			"total_stock_value": Inventory.objects.aggregate(total=Sum(F("stock_level") * F("price")))["total"],
-			"low_stock_count": Inventory.objects.filter(stock_level__lte=F("low_stock_threshold")).count(),
-			"total_products":  Inventory.objects.count(),
+			"total_stock_value": Inventory.objects.filter(owner=request.user.id).aggregate(total=Sum(F("stock_level") * F("price")))["total"],
+			"low_stock_count": Inventory.objects.filter(owner=request.user.id).filter(stock_level__lte=F("low_stock_threshold")).count(),
+			"total_products":  Inventory.objects.filter(owner=request.user.id).count(),
 		}
 		return Response({"data": data}, status=status.HTTP_200_OK)
 
