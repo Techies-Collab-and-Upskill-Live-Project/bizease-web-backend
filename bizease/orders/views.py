@@ -5,7 +5,7 @@ from .serializers import OrderSerializer
 from rest_framework.response import Response
 from .models import Order
 from rest_framework import status
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Q
 import math
 
 
@@ -25,45 +25,67 @@ class OrdersView(APIView):
 	parser_classes = [JSONParser]
 	permission_classes = [IsAuthenticated]
 	page_size = 20
+	curr_queryset = None
 
-	def get_page_param(self, get_obj):
-		page_param = get_obj.get('page')
-		if not page_param or len(get_obj.getlist('page')) != 1:
+	def order_data(self):
+		valid_values  = ["id", "-id", "order_date", "-order_date", "-total_price", "total_price"]
+
+		order_query = self.request.GET.get('order')
+		if order_query not in valid_values or len(self.request.GET.getlist('order')) != 1:
+			return self
+
+		self.curr_queryset = self.curr_queryset.order_by(order_query)
+		return self
+
+	def filter_data_by_query(self):
+		query_str = self.request.GET.get('query')
+		if not query_str or len(self.request.GET.getlist('query')) != 1:
+			return self
+		self.curr_queryset = self.curr_queryset.filter(
+			Q(ordered_products__name__icontains=query_str) | Q(client_name__icontains=query_str)
+		)
+		return self
+
+	def filter_data_by_status(self):
+		valid_values  = ["Pending", "Delivered"]
+
+		status = self.request.GET.get('status')
+		if status:
+			status = status.title()
+
+		if status not in valid_values or len(self.request.GET.getlist('status')) != 1:
+			return self
+
+		self.curr_queryset = self.curr_queryset.filter(status=status)
+		return self
+
+	def get_page_param(self):
+		page_param = self.request.GET.get('page')
+		if not page_param or len(self.request.GET.getlist('page')) != 1:
 			return None
 		try:
-			page_param = int(page_param)
+			return int(page_param)
 		except:
 			return None
 
-		if page_param <= 0:
-			return None
-		return page_param
-
-	# todo:
-	# add the following get params
-	# query - Orderedproduct_name, client_name (inexact) . Will serve as the search endpoint
-	# status
-	# order - id, order_date, total_price
 	def get(self, request, **kwargs):
-		page_param = self.get_page_param(request.GET)
+		self.curr_queryset = Order.objects.filter(product_owner_id=request.user.id)
+		self.filter_data_by_query().filter_data_by_status().order_data()
 
-		if not page_param:
-			page_count = 1
-			serializer = OrderSerializer(
-				list(Order.objects.filter(product_owner_id=request.user.id).order_by("id")), 
-				many=True
-			)
-		else:
-			items_count = Order.objects.count() # total number of distinct Order
-			page_count = math.ceil(items_count/self.page_size)
-			if page_count < page_param:
+		page_param = self.get_page_param()
+
+		if page_param:
+			page_count = math.ceil(len(self.curr_queryset)/self.page_size)
+			if (page_count < page_param) or (page_param <= 0):
 				return Response({"detail": "Page Not found", data: None}, status=status.HTTP_404_NOT_FOUND)
 
 			offset = (page_param-1) * self.page_size
-			serializer = OrderSerializer(
-				list(Order.objects.filter(product_owner_id=request.user.id).order_by("id")[offset:offset+self.page_size]),
-				many=True
-			)
+			self.curr_queryset = self.curr_queryset[offset:offset+self.page_size]
+		else:
+			page_count = 1
+
+		serializer = OrderSerializer(list(self.curr_queryset), many=True)
+		
 		if page_param and (page_param+1 <= page_count):
 			next_page = page_param + 1
 		else:
