@@ -6,6 +6,7 @@ from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Sum, F, Q
+from django.db.utils import IntegrityError
 import math
 
 """
@@ -117,9 +118,13 @@ class InventoryView(APIView):
 		if not serializer.is_valid():
 			return Response({"detail": serializer.errors}, status=400)
 		else:
-			item = Inventory(owner=request.user, **serializer.data)
-			item.save()
-		return Response({"detail": "New Item added to inventory", "data": InventoryItemSerializer(item).data}, status=status.HTTP_200_OK)
+			db_saved_item = None
+			try:
+				db_saved_item = serializer.save(request.user)
+			except IntegrityError:
+				return Response({"detail": "Multiple inventory items with the same 'product_name' are not allowed"}, status=status.HTTP_200_OK)
+
+			return Response({"detail": "New Item added to inventory", "data": InventoryItemSerializer(db_saved_item).data}, status=status.HTTP_200_OK)
 
 class InventoryItemView(APIView):
 	permission_classes = [IsAuthenticated]
@@ -146,7 +151,7 @@ class InventoryItemView(APIView):
 
 		productDataUpdate = InventoryItemSerializer(item, data=request.data, partial=True)
 		if productDataUpdate.is_valid():
-			productDataUpdate.save()
+			productDataUpdate.save(request.user)
 			return Response({"detail": "Product data updated successful"}, status=status.HTTP_200_OK)
 		else:
 			return Response(
