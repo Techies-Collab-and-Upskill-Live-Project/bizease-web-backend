@@ -47,7 +47,7 @@ class InventoryView(APIView):
 		if not category or len(self.request.GET.getlist('category')) != 1:
 			return self
 
-		self.curr_queryset = self.curr_queryset.filter(category=category)
+		self.curr_queryset = self.curr_queryset.filter(category__iexact=category)
 		return self
 
 	def order_by_query(self):
