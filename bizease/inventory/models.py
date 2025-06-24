@@ -9,7 +9,7 @@ class Inventory(models.Model):
 	stock_level = models.PositiveIntegerField(default=0)
 	low_stock_threshold = models.PositiveIntegerField(default=5)
 	price = models.PositiveIntegerField(default=0)
-	last_updated = models.DateField(auto_now_add=True)
+	last_updated = models.DateTimeField(auto_now=True)
 
 
 	class Meta:
