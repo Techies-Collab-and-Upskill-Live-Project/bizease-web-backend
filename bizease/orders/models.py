@@ -7,7 +7,8 @@ class Order(models.Model):
 	client_email = models.CharField(max_length=150, blank=True)
 	client_phone = models.CharField(max_length=150, blank=True)
 	status = models.CharField(choices={"Pending": "Pending", "Delivered": "Delivered"}, null=True)
-	order_date = models.DateField(auto_now_add=True)
+	order_date = models.DateTimeField(auto_now_add=True)
+	delivery_date = models.DateTimeField(null=True)
 	total_price = models.IntegerField(default=0)
 
 	class Meta:

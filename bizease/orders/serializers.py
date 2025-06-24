@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Order, OrderedProduct
 from inventory.models import Inventory
+from datetime import datetime
 
 class OrderedProductSerializer(serializers.ModelSerializer):
 	class Meta:
@@ -17,10 +18,12 @@ class OrderSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Order
 		fields = [
-			'id', 'client_name', 'client_email', 'client_phone', 'status', 'ordered_products', 'total_price'
+			'id', 'client_name', 'client_email', 'client_phone', 'status', 'ordered_products', 'total_price', 'order_date', 'delivery_date'
 		]
 	total_price = serializers.IntegerField(required=False)
+	order_date = serializers.DateTimeField(required=False)
 	ordered_products = OrderedProductSerializer(many=True)
+	read_only_fields = ['id', 'delivery_date']
 
 	# todo: Wrap it all in a transaction
 	def create(self, product_owner):
@@ -105,6 +108,9 @@ class OrderSerializer(serializers.ModelSerializer):
 		self.instance.client_email = self.validated_data.get('client_email', self.instance.client_email)
 		self.instance.client_phone = self.validated_data.get('client_phone', self.instance.client_phone)
 		self.instance.status = self.validated_data.get('status', self.instance.status)
+
+		if self.instance.status == "Delivered":
+			self.instance.delivery_date = datetime.now()
 
 		self.instance.save()
 		return {"detail": "Order Updated successfully", "status": 200}
