@@ -7,6 +7,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 		fields = [
 			'id', 'product_name', 'description', 'stock_level', 'price', 'last_updated', 'low_stock_threshold', 'category'
 		]
+		read_only_fields = ["id"]
 
 	def save(self, owner):
 		if self.validated_data.get('product_name'):
@@ -21,4 +22,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 	def update(self, instance, validated_data):
 		if validated_data.get("product_name"):
 			validated_data["product_name"] = validated_data["product_name"].title() # Apply very basic normalization to the text
+
+		if validated_data.get("category"):
+			validated_data["category"] = validated_data["category"].title() # Apply very basic normalization to the text
 		return super().update(instance, validated_data)

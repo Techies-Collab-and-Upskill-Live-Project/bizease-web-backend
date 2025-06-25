@@ -122,7 +122,7 @@ class InventoryView(APIView):
 			try:
 				db_saved_item = serializer.save(request.user)
 			except IntegrityError:
-				return Response({"detail": "Multiple inventory items with the same 'product_name' are not allowed"}, status=status.HTTP_200_OK)
+				return Response({"detail": "Multiple inventory items with the same 'product_name' are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
 
 			return Response({"detail": "New Item added to inventory", "data": InventoryItemSerializer(db_saved_item).data}, status=status.HTTP_200_OK)
 
@@ -151,7 +151,11 @@ class InventoryItemView(APIView):
 
 		productDataUpdate = InventoryItemSerializer(item, data=request.data, partial=True)
 		if productDataUpdate.is_valid():
-			productDataUpdate.save(request.user)
+			try:
+				productDataUpdate.save(request.user)
+			except IntegrityError:
+				return Response({"detail": "Multiple inventory items with the same 'product_name' are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
+				
 			return Response({"detail": "Product data updated successful"}, status=status.HTTP_200_OK)
 		else:
 			return Response(

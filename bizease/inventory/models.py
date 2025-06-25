@@ -8,6 +8,8 @@ class Inventory(models.Model):
 	category = models.CharField(max_length=100, blank=True)
 	stock_level = models.PositiveIntegerField(default=0)
 	low_stock_threshold = models.PositiveIntegerField(default=5)
+	
+	# Add constraint such that the field only ever approaches zero as it reduces
 	price = models.DecimalField(default=0, max_digits=14, decimal_places=2)
 	last_updated = models.DateTimeField(auto_now=True)
 
