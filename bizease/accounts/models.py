@@ -6,10 +6,10 @@ from django.utils import timezone
 
 
 class CustomUserManager(BaseUserManager):
-	def model(self, *args, **kwargs):
-		super().model(*args, **kwargs)
+	# def model(self, *args, **kwargs):
+	# 	super().model(*args, **kwargs)
 
-	def create_user(self, email, password, **extra_fields):
+	def create_user(self, email, password=None, **extra_fields):
 		if not email:
 			raise ValueError('Email is required')
 		email = self.normalize_email(email)
@@ -18,7 +18,7 @@ class CustomUserManager(BaseUserManager):
 		user.save()
 		return user
 
-	def create_superuser(self, email, password, **extra_fields):
+	def create_superuser(self, email, password=None, **extra_fields):
 		extra_fields.setdefault('is_staff', True)
 		extra_fields.setdefault('is_superuser', True)
 		extra_fields.setdefault('is_active', True)
