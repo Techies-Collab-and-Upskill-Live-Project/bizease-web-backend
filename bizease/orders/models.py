@@ -26,7 +26,8 @@ class Order(models.Model):
 	@transaction.atomic
 	def save_order_to_db(self, products_err_dict, **kwargs):
 		super().save(**kwargs)
-		self.total_price = 0
+		if len(self.ordered_products_objects) > 0:
+			self.total_price = 0
 		for product in self.ordered_products_objects:
 			if product.id != None:
 				raise ValueError(f"Ordered product '{product.name}' has already been added to another order.")
@@ -63,11 +64,12 @@ class Order(models.Model):
 class OrderedProduct(models.Model):
 	name = models.CharField(max_length=100)
 	order_id = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="ordered_products")
-	quantity = models.PositiveIntegerField()
+	quantity = models.PositiveIntegerField() # Add check constraint that make sure this field is gt_than_0
 	price = models.DecimalField(default=0, max_digits=14, decimal_places=2)
 	cummulative_price = models.DecimalField(max_digits=14, decimal_places=2)
 
 	class Meta:
+		ordering = ["id"]
 		constraints = [
 			models.UniqueConstraint(fields=["order_id", "name"], name="unique_product_in_order"),
 			models.CheckConstraint(condition=Q(price__gt=0), name="order_price_greater_than_zero"),
@@ -76,6 +78,8 @@ class OrderedProduct(models.Model):
 
 	def validate_data(self, inventory_product):
 		errors = []
+		if self.quantity <= 0 or type(self.quantity) != int:
+			errors.append(f"Quantity must be an integer and must be equal to 1 at least")
 		if self.quantity > inventory_product.stock_level:
 			errors.append(f"Not enough products in stock to satisfy order for '{self.name}'")
 		if self.price != inventory_product.price:
