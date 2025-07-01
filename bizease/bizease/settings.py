@@ -74,19 +74,20 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+AUTH_USER_MODEL = 'accounts.CustomUser'
 
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # 👈 tells allauth there's no username field
-ACCOUNT_LOGIN_METHODS = {"email"}  # <-- new version of AUTHENTICATION_METHOD
-ACCOUNT_SIGNUP_FIELDS = ["email", "password"]
+
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password']
 REST_USE_JWT = True
-AUTH_USER_MODEL = 'accounts.CustomUser'
-ACCOUT_EMAIL_VERIFICATION = 'mandatory'
-
-AUTH_USER_MODEL = 'accounts.CustomUser'
 
 
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'yourapp.authentication.EmailBackend',
+]
 
 
 REST_FRAMEWORK = {

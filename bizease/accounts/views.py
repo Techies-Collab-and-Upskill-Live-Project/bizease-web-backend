@@ -33,6 +33,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 
 
+
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
 
@@ -100,7 +101,7 @@ class LogoutView(APIView):
 	def delete(self, request, **kwargs):
 		# remove the token
 		return Response({"detail": "User logged out"}, status=status.HTTP_200_OK)
-
+	
 import os
 class PasswordResetRequestView(APIView):
     def post(self, request):
