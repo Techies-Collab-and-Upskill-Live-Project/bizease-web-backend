@@ -46,7 +46,13 @@ class SignUpDataSerializer(serializers.ModelSerializer):
         new_user.set_password(unhashed_password)
         new_user.save()
         return new_user
-
+    
 class LoginDataSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=150)
     password = serializers.CharField(max_length=50)
+
+
+
+
+
+
