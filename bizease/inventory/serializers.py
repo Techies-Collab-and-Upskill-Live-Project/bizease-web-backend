@@ -18,11 +18,3 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 		self.validated_data['owner'] = owner
 
 		return super().save()
-
-	def update(self, instance, validated_data):
-		if validated_data.get("product_name"):
-			validated_data["product_name"] = validated_data["product_name"].title() # Apply very basic normalization to the text
-
-		if validated_data.get("category"):
-			validated_data["category"] = validated_data["category"].title() # Apply very basic normalization to the text
-		return super().update(instance, validated_data)
