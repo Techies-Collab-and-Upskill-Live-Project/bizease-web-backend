@@ -6,9 +6,6 @@ from django.utils import timezone
 
 
 class CustomUserManager(BaseUserManager):
-	# def model(self, *args, **kwargs):
-	# 	super().model(*args, **kwargs)
-
 	def create_user(self, email, password=None, **extra_fields):
 		if not email:
 			raise ValueError('Email is required')
