@@ -41,7 +41,7 @@ class OrderSerializer(serializers.ModelSerializer):
 	total_price = serializers.IntegerField(required=False)
 	order_date = serializers.DateTimeField(required=False)
 	ordered_products = OrderedProductSerializer(many=True)
-	read_only_fields = ['id', 'delivery_date']
+	read_only_fields = ['id', 'delivery_date','total_price',]
 
 	def create(self, product_owner):
 		ordered_products = self.validated_data["ordered_products"]
@@ -56,7 +56,11 @@ class OrderSerializer(serializers.ModelSerializer):
 		for item in ordered_products:
 			new_order.ordered_products_objects.append(OrderedProduct(**item))
 
-		errors = new_order.save()
+		try:
+			errors = new_order.save()
+		except:
+			return {"errors": "Fatal error"}
+			
 		if (errors):
 			return {"errors": errors}
 		return {"data": new_order}
