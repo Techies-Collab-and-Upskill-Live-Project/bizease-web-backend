@@ -124,7 +124,7 @@ class InventoryView(APIView):
 			except IntegrityError:
 				return Response({"detail": "Multiple inventory items with the same 'product_name' are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
 
-			return Response({"detail": "New Item added to inventory", "data": InventoryItemSerializer(db_saved_item).data}, status=status.HTTP_200_OK)
+			return Response({"detail": "New Item added to inventory", "data": InventoryItemSerializer(db_saved_item).data}, status=status.HTTP_201_CREATED)
 
 class InventoryItemView(APIView):
 	permission_classes = [IsAuthenticated]
@@ -139,7 +139,7 @@ class InventoryItemView(APIView):
 			return Response({"detail": "Target happens to be multiple items"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 		inventory_item = InventoryItemSerializer(item)
-		return Response(inventory_item.data, status=status.HTTP_200_OK)
+		return Response({"data": inventory_item.data}, status=status.HTTP_200_OK)
 
 	def put(self, request, item_id, **kwargs):
 		try:
