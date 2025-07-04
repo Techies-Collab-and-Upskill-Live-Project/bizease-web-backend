@@ -71,7 +71,7 @@ the basic directory structure of an app, so you can focus on writing code rather
 
 To create your app, make sure you’re in the same directory as manage.py and type this command:
 ```bash
-python manage.py startapp polls
+python manage.py startapp <app-name>
 ```
 
 ## Running unit tests

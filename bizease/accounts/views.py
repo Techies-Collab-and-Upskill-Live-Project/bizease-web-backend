@@ -19,20 +19,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from allauth.socialaccount.models import SocialAccount
 
-
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.parsers import JSONParser
-from .models import CustomUser
-from .serializers import SignUpDataSerializer, LoginDataSerializer, ProfileDataSerializer
-from django.contrib.auth import authenticate # , login
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import IsAuthenticated
-
-
-
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
 
@@ -106,12 +92,29 @@ class ProfileView(APIView):
 			)
 
 class LogoutView(APIView):
-	permission_classes = [IsAuthenticated]
-	parser_classes = [JSONParser]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser]
 
-	def delete(self, request, **kwargs):
-		# remove the token
-		return Response({"detail": "User logged out"}, status=status.HTTP_200_OK)
+    def delete(self, request, **kwargs):
+        token_str = request.headers.get("x-session-refresh-token")
+
+        if not token_str:
+            return Response(
+                {"detail": "'x-session-refresh-token' http header with a valid refresh token value must be present"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            token_to_blacklist = RefreshToken(token_str)
+            token_to_blacklist.blacklist()
+        except TokenError as err:
+            return Response(
+                {"detail": "Invalid refresh token value"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except:
+            return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"detail": "User logged out"}, status=status.HTTP_200_OK)
 	
 import os
 class PasswordResetRequestView(APIView):
