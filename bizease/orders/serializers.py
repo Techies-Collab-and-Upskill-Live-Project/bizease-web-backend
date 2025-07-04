@@ -78,7 +78,11 @@ class OrderSerializer(serializers.ModelSerializer):
 		if self.instance.status == "Delivered":
 			self.instance.delivery_date = timezone.now()
 
-		errors = self.instance.save()
+		try:
+			errors = self.instance.save()
+		except:
+			return {"errors": "Fatal error"}
+			
 		if (errors):
 			return {"errors": errors}
 		return {"data": self.instance}

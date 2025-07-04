@@ -1,9 +1,9 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
-from .serializers import OrderSerializer
+from .serializers import OrderSerializer, OrderedProductSerializer
 from rest_framework.response import Response
-from .models import Order
+from .models import Order, OrderedProduct
 from rest_framework import status
 from django.db.models import Sum, F, Q
 import math
@@ -109,7 +109,20 @@ class OrdersView(APIView):
 		order_serializer = OrderSerializer(data=request.data)
 		if order_serializer.is_valid():
 			response = order_serializer.save(request.user)
-			return Response({"detail": response["detail"]}, status=response["status"])
+			errors = response.get("errors")
+			if not errors:
+				return Response(
+					{
+						"detail": "Order created successfully",
+						"data": OrderSerializer(response["data"]).data
+					}, status=status.HTTP_201_CREATED
+				)
+
+			elif (errors == "Fatal error"):
+				return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+			else:
+				# print("==>", errors)
+				return Response({"detail": errors}, status=status.HTTP_400_BAD_REQUEST)	
 		else:
 			return Response({"detail": order_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -118,43 +131,132 @@ class SingleOrderView(APIView):
 	parser_classes = [JSONParser]
 	permission_classes = [IsAuthenticated]
 
-	def get(self, request, item_id, **kwargs):
+	def get(self, request, order_id, **kwargs):
 		try:
-			item = Order.objects.get(pk=item_id)
+			item = Order.objects.filter(product_owner_id=request.user.id).get(pk=order_id)
 		except Order.DoesNotExist:
-			return Response({"detail": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
+			return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 		except Order.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
-			return Response({"detail": "Target happens to be multiple items"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+			return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 		return Response({"data": OrderSerializer(item).data}, status=status.HTTP_200_OK)
 
-	def put(self, request, item_id, **kwargs):
+	def put(self, request, order_id, **kwargs):
 		try:
-			order_to_edit = Order.objects.get(pk=item_id)
+			order_to_edit = Order.objects.filter(product_owner_id=request.user.id).get(pk=order_id)
 		except Order.DoesNotExist:
-			return Response({"detail": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
+			return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 		except Order.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
-			return Response({"detail": "Target happens to be multiple items"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+			return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 		order_edits = OrderSerializer(order_to_edit, data=request.data, partial=True)
 
 		if order_edits.is_valid():
 			response = order_edits.save(request.user)
-			return Response({"detail": response["detail"]}, status=response["status"])
+			if (response.get("errors")):
+				return Response({"detail": response["errors"]}, status=status.HTTP_400_BAD_REQUEST)
+			return Response(
+				{
+					"detail": "Order created successfully",
+					"data": OrderSerializer(response["data"]).data
+				}, status=status.HTTP_200_OK
+			)
 		else:
 			return Response({"detail": order_edits.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-	def delete(self, request, item_id, **kwargs):
+	def delete(self, request, order_id, **kwargs):
 		try:
-			item = Order.objects.get(pk=item_id)
+			item = Order.objects.filter(product_owner_id=request.user.id).get(pk=order_id)
 		except Order.DoesNotExist:
-			return Response({"detail": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
+			return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 		except Order.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
-			return Response({"detail": "Target happens to be multiple items"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+			return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-		# prevent the deletion of delivered orders
+		if (item.status == "Delivered"):
+			return Response({"detail": "Only Pending orders can be deleted"}, status=status.HTTP_400_BAD_REQUEST)
+
 		del_count, del_dict = item.delete()
 		if (del_count > 0):
 			return Response({"detail": "Order deleted successfully"}, status=status.HTTP_200_OK)
 		else: # What could go wrong?
 			return Response(
-				{"detail": "Delete operation incomplete. Something went wrong while deleting inventory Item"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+				{"detail": "Delete operation incomplete. Something went wrong while deleting Order"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+			)
+
+class OrderedProducts(APIView):
+	parser_classes = [JSONParser]
+	permission_classes = [IsAuthenticated]
+
+	def post(self, request, order_id):
+		ordered_product_serializer = OrderedProductSerializer(data=request.data)
+		if (ordered_product_serializer.is_valid()):
+			ordered_product_serializer.save()
+			return Response({"detail": "product added to Order successfully"}, status=status.HTTP_201_CREATED)
+		else:
+			return Response({"detail": ordered_product_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class OrderedProductView(APIView):
+	parser_classes = [JSONParser]
+	permission_classes = [IsAuthenticated]
+
+	def get_ordered_product_by_id(self, ordered_products, product_id):
+		for product in ordered_products:
+			if product_id == product.id:
+				return product_id 
+		raise OrderedProduct.DoesNotExist
+
+	def get(self, request, order_id, product_id, **kwargs):
+		try:
+			order = Order.objects.filter(product_owner_id=request.user.id).get(pk=order_id)
+			product = get_ordered_product_by_id(order.ordered_products, product_id)
+		except Order.DoesNotExist:
+			return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+		except OrderedProduct.DoesNotExist:
+			return Response({"detail": "Ordered Product not found"})
+		except (Order.MultipleObjectsReturned, OrderedProduct.MultipleObjectsReturned): # This shouldn't be possible but it's handled anyways
+			return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+		return Response({"data": OrderedProductSerializer(product).data}, status=status.HTTP_200_OK)
+
+	def put(self, request, order_id, product_id, **kwargs):
+		try:
+			order = Order.objects.filter(product_owner_id=request.user.id).get(pk=order_id)
+			product = get_ordered_product_by_id(order.ordered_products, product_id)
+		except Order.DoesNotExist:
+			return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+		except OrderedProduct.DoesNotExist:
+			return Response({"detail": "Ordered Product not found"}, status=status.HTTP_404_NOT_FOUND)
+		except (Order.MultipleObjectsReturned, OrderedProduct.MultipleObjectsReturned): # This shouldn't be possible but it's handled anyways
+			return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+		product_edit = OrderedProductSerializer(product, data=request.data, partial=True)
+
+		if product_edit.is_valid():
+			response = product_edit.save(request.user)
+			return Response({"detail": response["detail"]}, status=response["status"])
+		else:
+			return Response({"detail": order_edits.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+	def delete(self, request, order_id, product_id, **kwargs):
+		try:
+			item = Order.objects.filter(product_owner_id=request.user.id).get(pk=order_id)
+			product = get_ordered_product_by_id(order.ordered_products, product_id)
+		except Order.DoesNotExist:
+			return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+		except OrderedProduct.DoesNotExist:
+			return Response({"detail": "Ordered Product not found"}, status=status.HTTP_404_NOT_FOUND)
+		except (Order.MultipleObjectsReturned, OrderedProduct.MultipleObjectsReturned): # This shouldn't be possible but it's handled anyways
+			return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+		if (item.status == "Delivered"):
+			return Response({"detail": "Only Ordered Products of Pending orders can be deleted"}, status=status.HTTP_400_BAD_REQUEST)
+		if len(item.ordered_products) == 1:
+			return Response(
+				{"detail": "The only ordered product of an order can't be deleted. An Order must have at least one ordered product"},
+				status=status.HTTP_400_BAD_REQUEST
+			)
+
+		del_count, del_dict = item.delete()
+		if (del_count > 0):
+			return Response({"detail": "Order deleted successfully"}, status=status.HTTP_200_OK)
+		else: # What could go wrong?
+			return Response(
+				{"detail": "Delete operation incomplete. Something went wrong while deleting Order"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
 			)
