@@ -2,6 +2,7 @@ from django.db import models, transaction
 from accounts.models import CustomUser
 from django.db.models import Q
 from inventory.models import Inventory
+# from django.utils import timezone
 
 class Order(models.Model):
 	product_owner_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
@@ -26,16 +27,33 @@ class Order(models.Model):
 	@transaction.atomic
 	def save_order_to_db(self, products_err_dict, **kwargs):
 		super().save(**kwargs)
+
 		if len(self.ordered_products_objects) > 0:
 			self.total_price = 0
+			
+		non_unique_order_err = "Ordered products must be unique. Use the quantity field to specify multiple orders of same item."
 		for product in self.ordered_products_objects:
+			product.name = product.name.title()
+			if products_err_dict.get(product.name) == None:
+				products_err_dict[product.name] = []
+			else:
+				if non_unique_order_err not in products_err_dict[product.name]:
+					products_err_dict[product.name].append(non_unique_order_err)
+				continue
+
 			if product.id != None:
-				raise ValueError(f"Ordered product '{product.name}' has already been added to another order.")
+				raise ValueError(f"Ordered product '{product.name}' has already been added to an order.")
 			product.order_id = self
 			errors = product.save()
 			if errors:
-				products_err_dict[product.name] = errors
-				raise ValueError("Ordered item has one or more invalid attributes")
+				products_err_dict[product.name] += errors
+
+		for k in products_err_dict.copy():
+			if len(products_err_dict[k]) == 0:
+				del products_err_dict[k]
+
+		if products_err_dict:
+			raise ValueError("Ordered item has one or more invalid attributes")
 
 	@transaction.atomic
 	def update_total_price(self, **kwargs):
@@ -44,6 +62,14 @@ class Order(models.Model):
 	def save(self, **kwargs):
 		ordered_products = self.ordered_products_objects # An array of OrderedProducts instance whose data haven't been saved to the db
 
+		actual_status_val = self.status
+		self.status = self.status.title()
+
+		if self.status not in ["Pending", "Delivered"]:
+			return  {"order-errors": [f"Invalid Order status value '{self.status}'"]}
+		elif self.status == "Delivered":
+			self.delivery_date = self.order_date
+
 		if (not self.id and ((type(ordered_products) != list) or not ordered_products)):
 			raise ValueError('An Order must have at least one ordered product')
 
@@ -51,7 +77,10 @@ class Order(models.Model):
 		try:
 			self.save_order_to_db(products_err_dict, **kwargs)
 		except ValueError as val_err:
-			if (str(val_err) != "Ordered item has one or more invalid attributes"):
+			# The error checked below was raised intentionally to rollback transactions but every other error
+			# raised are fatal errors relating to the database or other crucial aspects of the project 
+			# (i.e, values violating db constraints) and they need to be handled properly outside this function
+			if (str(val_err) != "Ordered item has one or more invalid attributes"): 
 				raise ValueError(val_err)
 
 		if products_err_dict:
@@ -119,7 +148,7 @@ class OrderedProduct(models.Model):
 	def save(self, *, new_order=True, **kwargs):
 		try:
 			product_owner_id = self.order_id.product_owner_id
-			inventory_product = Inventory.objects.filter(owner_id=product_owner_id).filter(product_name=self.name.title()).get()
+			inventory_product = Inventory.objects.filter(owner_id=product_owner_id).filter(product_name=self.name).get()
 		except (Inventory.DoesNotExist, Inventory.MultipleObjectsReturned, Order.DoesNotExist, Order.MultipleObjectsReturned):
 			return [f"'{self.name}' doesn't exist in the Inventory."]
 		errors = self.validate_data(inventory_product)
