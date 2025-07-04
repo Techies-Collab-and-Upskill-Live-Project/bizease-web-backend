@@ -1,4 +1,4 @@
-from rest_framework.test import APITestCase
+from rest_framework.test import APITransactionTestCase
 from django.test import TestCase
 from .models import Order, OrderedProduct
 from .serializers import OrderedProductSerializer, OrderSerializer
@@ -55,7 +55,7 @@ class OrderModelTest(TestCase):
 		order = Order(product_owner_id=self.test_user, client_name="customer1", client_email="customer1@gmail.com", client_phone="08149672890")
 		ordered_product = OrderedProduct(name="Invalid item", quantity=4, price=30)
 		order.ordered_products_objects = [ordered_product]
-		self.assertEqual(order.save(), {"Invalid item": ["'Invalid item' doesn't exist in the Inventory."]})
+		self.assertEqual(order.save(), {"Invalid Item": ["'Invalid Item' doesn't exist in the Inventory."]})
 
 		order = Order(product_owner_id=self.test_user, client_name="customer1", client_email="customer1@gmail.com", client_phone="08149672890")
 		ordered_product = OrderedProduct(name="Satchet Water", quantity=501, price=20)
@@ -264,28 +264,27 @@ class OrderSerializersTest(TestCase):
 		self.assertEqual(updated_order.ordered_products.count(), 3)
 
 
-class OrdersViewsTest(APITestCase):
-	@classmethod
-	def setUpTestData(cls):
-		cls.test_user = CustomUser.objects.create(
+class OrdersViewsTest(APITransactionTestCase):
+	def setUp(self):
+		self.test_user = CustomUser.objects.create(
 			business_name="user-biz", full_name="test user", email="testuser123@gmail.com", password="12345678"
 		)
-		cls.test_user_2 = CustomUser.objects.create(
+		self.test_user_2 = CustomUser.objects.create(
 			business_name="rocket-biz", full_name="rocket monkey", email="rocketmonkey@gmail.com", password="12345678"
 		)
-		cls.refresh_obj = RefreshToken.for_user(cls.test_user)
+		self.refresh_obj = RefreshToken.for_user(self.test_user)
 		# refresh_token = str(refresh_obj)
-		cls.access_token = str(cls.refresh_obj.access_token)
+		self.access_token = str(self.refresh_obj.access_token)
 
-		cls.item_1 = Inventory.objects.create(owner=cls.test_user, product_name="Calculator", price=10000, stock_level=100)
-		cls.item_2 = Inventory.objects.create(owner=cls.test_user, product_name="Safety Boots", price=65000, stock_level=20)
-		cls.item_3 = Inventory.objects.create(owner=cls.test_user, product_name="Helmet", price=6000, stock_level=45)
+		self.item_1 = Inventory.objects.create(owner=self.test_user, product_name="Calculator", price=10000, stock_level=100)
+		self.item_2 = Inventory.objects.create(owner=self.test_user, product_name="Safety Boots", price=65000, stock_level=20)
+		self.item_3 = Inventory.objects.create(owner=self.test_user, product_name="Helmet", price=6000, stock_level=45)
 
-		cls.test_order = Order(product_owner_id=cls.test_user, client_name="bob", client_email="bob@gmail.com")
-		cls.ordered_product_1 = OrderedProduct(name="Calculator", quantity=1, price=10000)
-		cls.ordered_product_2 = OrderedProduct(name="Helmet", quantity=5, price=6000)
-		cls.test_order.ordered_products_objects = [cls.ordered_product_1, cls.ordered_product_2]
-		cls.test_order.save()
+		self.test_order = Order(product_owner_id=self.test_user, client_name="bob", client_email="bob@gmail.com")
+		self.ordered_product_1 = OrderedProduct(name="Calculator", quantity=1, price=10000)
+		self.ordered_product_2 = OrderedProduct(name="Helmet", quantity=5, price=6000)
+		self.test_order.ordered_products_objects = [self.ordered_product_1, self.ordered_product_2]
+		self.test_order.save()
 
 
 	def create_valid_new_order_req(self):

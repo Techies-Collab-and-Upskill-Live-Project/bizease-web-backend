@@ -1,7 +1,7 @@
 from django.test import TestCase
 from .models import Inventory
 from .serializers import InventoryItemSerializer
-from rest_framework.test import APITestCase
+from rest_framework.test import APITransactionTestCase
 from datetime import datetime
 from django.db.utils import IntegrityError
 from accounts.models import CustomUser
@@ -36,7 +36,7 @@ class InventorySerializersTest(TestCase):
 		serializer_output = InventoryItemSerializer(self.inventory_product).data
 		last_updated = serializer_output.pop("last_updated")
 		self.assertEqual(expected_output, serializer_output)
-		self.assertRegex("2025-06-25T04:02:39.471738Z", r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}Z$')
+		self.assertRegex(last_updated, r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}Z$')
 
 	def Test_inventory_item_creation_through_serializer_without_err(self):
 		data = {
@@ -88,19 +88,18 @@ class InventorySerializersTest(TestCase):
 		# self.assertEqual(str(item_serializer.errors['low_stock_threshold'].string), 'Ensure this value is greater than or equal to 0.')
 
 
-class InventoryViewsTest(APITestCase):
-	@classmethod
-	def setUpTestData(cls):
-		cls.test_user = CustomUser.objects.create(
+class InventoryViewsTest(APITransactionTestCase):
+	def setUp(self):
+		self.test_user = CustomUser.objects.create(
 			business_name="Business 1", full_name="Business Man", email="businessMan@email.com", password="12345678"
 		)
-		cls.refresh_obj = RefreshToken.for_user(cls.test_user)
+		self.refresh_obj = RefreshToken.for_user(self.test_user)
 		# refresh_token = str(refresh_obj)
-		cls.access_token = str(cls.refresh_obj.access_token)
+		self.access_token = str(self.refresh_obj.access_token)
 
-		cls.item_1 = Inventory.objects.create(owner=cls.test_user, product_name="Glasses", price=10000, stock_level=15)
-		cls.item_2 = Inventory.objects.create(owner=cls.test_user, product_name="Plastic Chair", price=7000, stock_level=100)
-		cls.item_3 = Inventory.objects.create(owner=cls.test_user, product_name="Rubbish", price=0.005, stock_level=1)
+		self.item_1 = Inventory.objects.create(owner=self.test_user, product_name="Glasses", price=10000, stock_level=15)
+		self.item_2 = Inventory.objects.create(owner=self.test_user, product_name="Plastic Chair", price=7000, stock_level=100)
+		self.item_3 = Inventory.objects.create(owner=self.test_user, product_name="Rubbish", price=0.005, stock_level=1)
 
 	def create_product_that_exists(self):
 		response = self.client.post(reverse("inventory", args=["v1"]), {"product_name": self.item_1.product_name, "stock_level": 10, "price": 100000})
@@ -118,7 +117,7 @@ class InventoryViewsTest(APITestCase):
 
 	def test_create_inventory_items_with_credentials(self):
 		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
-		# self.create_product_that_exists()
+		self.create_product_that_exists()
 		self.create_valid_new_product()
 
 	def test_create_inventory_items_without_credentials(self):
