@@ -147,6 +147,9 @@ class OrderedProduct(models.Model):
 	@transaction.atomic
 	def save(self, *, new_order=True, **kwargs):
 		try:
+			if type(self.order_id) == int:
+				self.order_id = Order.objects.get(pk=self.order_id)
+
 			product_owner_id = self.order_id.product_owner_id
 			inventory_product = Inventory.objects.filter(owner_id=product_owner_id).filter(product_name=self.name).get()
 		except (Inventory.DoesNotExist, Inventory.MultipleObjectsReturned, Order.DoesNotExist, Order.MultipleObjectsReturned):
@@ -166,6 +169,28 @@ class OrderedProduct(models.Model):
 		super().save(**kwargs)
 		if new_order == False:
 			self.order_id.update_total_price()
+
+	@transaction.atomic
+	def delete(self, **kwargs):
+		item_in_stock = True
+		try:
+			order_obj = Order.objects.get(pk=self.order_id.id)
+			inventory_product = Inventory.objects.filter(owner_id=order_obj.product_owner_id).filter(product_name=self.name).get()
+		except (Order.DoesNotExist, Order.MultipleObjectsReturned):
+			raise ValueError("Unexpected Error! ordered item to delete has no Order")
+		except (Inventory.DoesNotExist, Inventory.MultipleObjectsReturned):
+			item_in_stock = False
+
+		if (order_obj.ordered_products.count() == 1):
+			raise ValueError("Can't delete item! An Order must have at least one ordered product")
+
+		order_obj.total_price -= (self.price * self.quantity)
+		order_obj.save()
+		if item_in_stock:
+			inventory_product.stock_level += self.quantity
+			inventory_product.save()
+
+		super().delete(**kwargs)
 
 	def __str__(self):
 		return f"{self.name}({self.quantity})"
