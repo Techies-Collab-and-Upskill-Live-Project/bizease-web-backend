@@ -412,6 +412,32 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: order
+          in: query
+          description: 
+            The order in which the orders data should be retrieved as well as the order
+            attribute to use for comparison when ordering the data. The default ordering
+            is ascending. Values prefixed by '-' means the data would be ordered in descending order. 
+            Invalid values will be ignored.
+          schema:
+            type: string
+            enum:
+              - id
+              - -id
+              - order_date
+              - -order_date
+              - -total_price 
+              - total_price
+        - name: status
+          in: query
+          description: 
+            Allows the retrieval of only orders with a specific status. The values are case-insensitive 
+            and invalid values will be ignored
+          schema:
+            type: string
+            enum:
+              - Pending
+              - Delivered
       responses:
         '200':
           description: User orders have been retrieved
@@ -574,7 +600,9 @@ paths:
         - User Orders
       summary: Edit a User's product order
       description: 
-        Edit a User's product order
+        Edit a User's product order. Only Orders with a status of 'Pending' can be updated. 
+        Only 'client_name', 'client_email', 'client_phone' and 'status' fields can be updated.
+        updating an Order's 'status' field to "Delivered" will also update the 'delivery_date' field
       parameters:
         - name: item_id
           in: path
@@ -689,6 +717,35 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: order
+          in: query
+          description: 
+            The order in which the inventory data should be retrieved as well as the 
+            attribute to use for comparison when ordering the data. The default ordering
+            is ascending. Values prefixed by '-' means the data would be ordered in descending order. 
+            Invalid values will be ignored.
+          schema:
+            type: string
+            enum:
+              - id
+              - -id
+              - last_updated
+              - -last_updated
+              - -price 
+              - price
+        - name: low_stock
+          in: query
+          description: 
+            Returns only Inventory items with low stock. It doesn't require a value.
+          schema:
+            type: string
+        - name: query
+          in: query
+          description: 
+            Returns only Inventory items that best fit the value. It can be used to search
+            through the inventory using a string
+          schema:
+            type: string
       responses:
         '200':
           description: Inventory products retrieved successfully
@@ -1032,7 +1089,7 @@ components:
           type: string
         currency:
           type: string
-          desctiption: Can only be NGN, GBP or USD
+          description: Can only be NGN, GBP or USD
           enum:
             - NGN
             - GBP
