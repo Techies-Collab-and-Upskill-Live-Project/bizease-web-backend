@@ -42,7 +42,7 @@ class Order(models.Model):
 				continue
 
 			if product.id != None:
-				raise ValueError(f"Ordered product '{product.name}' has already been added to an order.")
+				raise ValueError(f"Ordered product '{product.name}' has already been added to an order.", "custom")
 			product.order_id = self
 			errors = product.save()
 			if errors:
@@ -65,13 +65,13 @@ class Order(models.Model):
 		actual_status_val = self.status
 		self.status = self.status.title()
 
-		if self.status not in ["Pending", "Delivered"]:
-			return  {"order-errors": [f"Invalid Order status value '{self.status}'"]}
+		if self.status not in ["Pending", "Delivered"]: # wouldn't the serializer have validated this field already?
+			return  {"order-errors": [f"Invalid Order status value '{actual_status_val}'"]}
 		elif self.status == "Delivered":
 			self.delivery_date = self.order_date
 
 		if (not self.id and ((type(ordered_products) != list) or not ordered_products)):
-			raise ValueError('An Order must have at least one ordered product')
+			raise ValueError('An Order must have at least one ordered product', "custom")
 
 		products_err_dict = {}
 		try:
@@ -123,17 +123,19 @@ class OrderedProduct(models.Model):
 
 	def assert_only_quantity_is_updated(self, currentDbInstance):
 		if (currentDbInstance.name != self.name):
-			raise ValueError("Only 'quantity' field can be updated")
+			return ["Only 'quantity' field can be updated"]
 		if (currentDbInstance.price != self.price):
-			raise ValueError("Only 'quantity' field can be updated")
+			return ["Only 'quantity' field can be updated"]
 		if (currentDbInstance.order_id != self.order_id):
-			raise ValueError("Only 'quantity' field can be updated")
+			return ["Only 'quantity' field can be updated"]
 		if (currentDbInstance.cummulative_price != self.cummulative_price):
-			raise ValueError("Only 'quantity' field can be updated")
+			return ["Only 'quantity' field can be updated"]
 
 	def update(self, inventory_product):
 		currentDbInstance = OrderedProduct.objects.get(pk=self.id)
-		self.assert_only_quantity_is_updated(currentDbInstance)
+		errors = self.assert_only_quantity_is_updated(currentDbInstance)
+		if errors:
+			return errors
 
 		prev_quantity = currentDbInstance.quantity
 		if self.quantity > (inventory_product.stock_level + prev_quantity):

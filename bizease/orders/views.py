@@ -102,7 +102,6 @@ class OrdersView(APIView):
 			"length": len(serializer.data),
 			"orders": serializer.data
 		}
-		# Tell frontend that id is order_id and they should reformat it to look fancy or whatever
 		return Response({"data": data}, status=status.HTTP_200_OK)
 
 	def post(self, request, **kwargs):
@@ -121,7 +120,6 @@ class OrdersView(APIView):
 			elif (errors == "Fatal error"):
 				return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 			else:
-				# print("==>", errors)
 				return Response({"detail": errors}, status=status.HTTP_400_BAD_REQUEST)	
 		else:
 			return Response({"detail": order_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
