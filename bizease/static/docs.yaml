@@ -560,7 +560,7 @@ paths:
           description: Unexpected server error
           $ref: "#/components/errors/Server500"
     
-  /orders/{item_id}:
+  /orders/{order_id}:
     get:
       security:
         - bearerAuth: []
@@ -571,7 +571,7 @@ paths:
         Gets a single Order for a User's product by the order's id. The request
         must be made by the authenticated User.
       parameters:
-        - name: item_id
+        - name: order_id
           in: path
           description: The id of the order to be retrieved
           required: true
@@ -604,7 +604,7 @@ paths:
         Only 'client_name', 'client_email', 'client_phone' and 'status' fields can be updated.
         updating an Order's 'status' field to "Delivered" will also update the 'delivery_date' field
       parameters:
-        - name: item_id
+        - name: order_id
           in: path
           description: The id of the order to be updated
           required: true
@@ -643,7 +643,7 @@ paths:
       description: 
         Deletes an Order for a user's orders by the id
       parameters:
-        - name: item_id
+        - name: order_id
           in: path
           description: The id of the order to be deleted
           required: true
@@ -666,6 +666,251 @@ paths:
         '500':
           description: Unexpected server error
           $ref: "#/components/errors/Server500"
+
+  /orders/{order_id}/ordered-products:
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Add a new ordered product to an existing order
+      description: 
+        Adds a new ordered product to an existing order. The 'total_price' field of the existing order
+        will be updated with the price of the newly added product
+      parameters:
+        - name: order_id
+          in: path
+          description: The id of the order to add a new ordered product
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Product added to Order successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: product added to Order successfully
+        '400':
+          description: 
+            Invalid Request Body. Response Body is a json object containing a 'detail' 
+            field that maps each invalid field name to an array of errors on why the field is invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: object
+                    additionalproperties:
+                      type: array
+                      items:
+                        type: string
+                    example:
+                      product_name:
+                        - This field is required
+                      ordered_products:
+                        - This field is required
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+  /orders/{order_id}/ordered-products/{product_id}:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Get the data of a single ordered product
+      description: 
+        Get the data of a single ordered product using it's id and it's Order id
+      parameters:
+        - name: order_id
+          in: path
+          description: The id of the order that one of it's ordered products is to be retrieved
+          required: true
+          schema:
+            type: integer
+        - name: product_id
+          in: path
+          description: The id of the ordered product to be retrieved
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The Ordered product data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#components/schemas/OrderedProduct"
+        '404':
+          description:
+            The Order or Ordered product with their respective ids was not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Order not found
+                      - Ordered Product not found
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Update an Ordered product's quantity
+      description: 
+        Updates and Ordered product fields. Only the quantity field is allowed to be updated
+      parameters:
+        - name: order_id
+          in: path
+          description: The id of the order that one of it's ordered products is to be retrieved
+          required: true
+          schema:
+            type: integer
+        - name: product_id
+          in: path
+          description: The id of the ordered product to be retrieved
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The updated Ordered product data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#components/schemas/OrderedProduct"
+        '400':
+          description: 
+            Invalid Request Body. Response Body is a json object containing a 'detail' field that maps 
+            each invalid field name to an array of errors on why the field is invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: object
+                    additionalproperties:
+                      type: array
+                      items:
+                        type: string
+                    example:
+                      quantity:
+                        - Quantity must be an integer and must be equal to 1 at least
+        '404':
+          description:
+            The order or Ordered product with their respective id was not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Order not found
+                      - Ordered Product not found
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+    delete:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Delete an Ordered product from an Order
+      description: 
+        Deletes an Ordered product from an Order provided the Order is pending, the deleted item is not 
+        the only ordered product of the order and the order exists. The Order's total_price attribute will 
+        also be updated once the ordered product is deleted.
+      parameters:
+        - name: order_id
+          in: path
+          description: The id of the order that one of it's ordered products is to be retrieved
+          required: true
+          schema:
+            type: integer
+        - name: product_id
+          in: path
+          description: The id of the ordered product to be retrieved
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Ordered product deleted successfully
+        '400':
+          description:
+            The ordered product requested to be deleted is either the only ordered product of the order or
+            the order is a 'Delivered' order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Only the Ordered products of Pending Orders can be deleted
+                      - The only ordered product of an order can't be deleted. An Order must have at least one ordered product
+        '404':
+          description:
+            The order or Ordered product with their respective id was not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Order not found
+                      - Ordered Product not found
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
   /orders/stats:
     get:
       security:
@@ -814,7 +1059,8 @@ paths:
       summary: Add a new product to a User's Inventory
       description: 
         Add a new product to a User's Inventory. The User must be authenticated and a 
-        product name can't be shared among different products in the inventory
+        product name can't be shared among different products in the inventory. The 
+        inventory item's name must be unique
       requestBody:
         content:
           application/json:
@@ -840,24 +1086,31 @@ paths:
                     example: New Item(s) added to inventory
         '400':
           description: 
-            Invalid Request Body. Response Body is a json object containing a 'detail' 
-            field that maps each invalid field name to an array of errors on why the field is invalid
+            Invalid Request Body. In this case, Response Body is a json object containing a 'detail' 
+            field that maps each invalid field name to an array of errors on why the field is invalid. 
+            It could also be an Integrity Error where the new product's name already exist in the inventory
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  detail:
-                    type: object
-                    additionalproperties:
-                      type: array
-                      items:
+                oneOf:
+                  - type: object
+                    properties:
+                      detail:
+                        type: object
+                        additionalproperties:
+                          type: array
+                          items:
+                            type: string
+                        example:
+                          product_name:
+                            - This field is required
+                          ordered_products:
+                            - This field is required
+                  - type: object
+                    properties:
+                      detail:
                         type: string
-                    example:
-                      product_name:
-                        - This field is required
-                      ordered_products:
-                        - This field is required
+                        example: Multiple inventory items with the same 'product_name' are not allowed
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -889,6 +1142,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InventoryItem"
+        '404':
+          description: 
+            Inventory Item with the specified id not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Item not found
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -928,6 +1192,28 @@ paths:
                   detail:
                     type: string
                     example: Inventory item Updated successfully
+        '404':
+          description: 
+            Inventory Item with the specified id not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Item not found
+        '400':
+          description: 
+            Updated Inventory item has the same name as an existing inventory item. This is not allowed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Multiple inventory items with the same 'product_name' are not allowed
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -960,6 +1246,39 @@ paths:
                   detail:
                     type: string
                     example: Inventory item deleted successfully
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+  /inventory/stats:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Inventory
+      summary: Get statistics about item's in a User's inventory
+      description: 
+        Gets Total Orders, Total Revenue and Pending Orders of a User's products
+      responses:
+        '200':
+          description: Data Retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_stock_value:
+                    type: integer
+                    example: 479
+                  low_stock_count:
+                    type: integer
+                    example: 4790000
+                  total_products:
+                    type: integer
+                    example: 150
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
