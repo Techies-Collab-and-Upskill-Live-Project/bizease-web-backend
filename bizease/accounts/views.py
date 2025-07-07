@@ -18,6 +18,11 @@ from django.urls import reverse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from allauth.socialaccount.models import SocialAccount
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+import os
+import requests
+
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -34,17 +39,68 @@ def get_tokens_for_user(user):
 https://adedamola.pythonanywhere.com/
 """
 
-class SignUpView(APIView):
-	parser_classes = [JSONParser]
 
-	def post(self, request, **kwargs):
-		serializer = SignUpDataSerializer(data=request.data)
-		if not serializer.is_valid():
-			return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-		else:
-			newUser = serializer.save()
-		tokens = get_tokens_for_user(newUser)
-		return Response({"detail": "User Created successfully", "data": tokens}, status=status.HTTP_201_CREATED)
+class EmailVerificationView(APIView):
+    def post(self, request, version, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = CustomUser.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+            return Response({"detail": "Invalid link"}, status=400)
+
+        if user.email_verification_token == token and default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.email_verification_token = None
+            user.save()
+            tokens = get_tokens_for_user(newUser)
+            return Response({"detail": "User email confirmed."}, status=200) # shouldn't it be a redirect to the frontend?
+        return Response({"detail": "Invalid or expired token"}, status=400)
+
+def send_email_verification_link(base_url, email):
+    user = CustomUser.objects.filter(email=email).first()
+
+    if user:
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        user.email_verification_token = token
+        subject = "Bizease Email Verification Request"
+
+        if os.getenv('ENVIRONMENT') == "production":
+            scheme = 'https://'
+        else:
+            scheme = 'http://'
+
+        reset_link = f"{scheme}{base_url}/v1/accounts/verify-email/{uid}/{token}/"
+        html_content = (
+            f"""
+            <p>Someone has created a Bizease account with this email address. If this was you, click the button below to verify your email address</p>
+            <form method='POST' action='{reset_link}'>
+            <button type="submit" style="padding:10px 20px; background-color: #0052CC; border-radius: 10px;color: #ffffff; font-weight: 600; border-width: 0">
+                Verify Email
+            </button>
+            </form>
+            <p>This link will expire in the next 24 hours. If you didn't create this account, just ignore this email.</p>"""
+        )
+        text_content = (
+            "Someone has created a Bizease account with this email address. If this was you, click the link below to verify your email address\n"
+            f"{reset_link}\nThis link will expire in the next 24 hours. If you didn't create this account, just ignore this email."
+        )
+        mail = EmailMultiAlternatives(subject, text_content, os.getenv("EMAIL_HOST_USER"), [email])
+        mail.attach_alternative(html_content, "text/html")
+        mail.send()
+        user.save()
+
+class SignUpView(APIView):
+    parser_classes = [JSONParser]
+
+    def post(self, request, **kwargs):
+        serializer = SignUpDataSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        newUser = serializer.save()
+        send_email_verification_link(request.get_host(), newUser.email)
+        return Response({"detail": "User account created. Email verification has been sent"}, status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
@@ -116,7 +172,6 @@ class LogoutView(APIView):
             return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response({"detail": "User logged out"}, status=status.HTTP_200_OK)
 	
-import os
 class PasswordResetRequestView(APIView):
     def post(self, request):
         email = request.data.get("email")
@@ -148,10 +203,9 @@ class PasswordResetConfirmView(APIView):
             user.save()
             return Response({"detail": "Password has been reset."}, status=200)
         return Response({"detail": "Invalid or expired token"}, status=400)
-	
-import requests
-GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 
+	
+GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 
 class GoogleAuthView(APIView):
     def post(self, request):

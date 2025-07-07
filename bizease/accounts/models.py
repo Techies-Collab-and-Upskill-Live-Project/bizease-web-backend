@@ -66,7 +66,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 	low_stock_threshold = models.IntegerField(default=5)
 	date_joined = models.DateTimeField(_("date joined"), default=timezone.now)
 	is_staff = models.BooleanField(default=False)
-	is_active = models.BooleanField(default=True)
+	is_active = models.BooleanField(default=False)
+	email_verification_token = models.CharField(max_length=64, null=True)
 
 	USERNAME_FIELD = 'email'
 	REQUIRED_FIELDS = []
