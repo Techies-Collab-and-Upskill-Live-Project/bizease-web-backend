@@ -49,15 +49,22 @@ class EmailVerificationView(APIView):
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = CustomUser.objects.get(pk=uid)
         except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
-            return Response({"detail": "Invalid link"}, status=400)
+            return Response({"detail": "Invalid link"}, status=400) # shouldn't it be a redirect to the frontend?
 
         if user.email_verification_token == token and default_token_generator.check_token(user, token):
             user.is_active = True
             user.email_verification_token = None
             user.save()
             tokens = get_tokens_for_user(newUser)
-            return Response({"detail": "User email confirmed."}, status=200) # shouldn't it be a redirect to the frontend?
-        return Response({"detail": "Invalid or expired token"}, status=400)
+            return Response({"detail": "User email verified."}, status=200) # shouldn't it be a redirect to the frontend?
+        return Response({"detail": "Invalid or expired token"}, status=400) # shouldn't it be a redirect to the frontend?
+
+
+class SendEmailVerification(APIView):
+    def post(self, request, version, email):
+        send_email_verification_link(request.get_host(), newUser.email)
+        return Response({"detail": "Email verification has been sent"}, status=status.HTTP_200_OK)
+
 
 def send_email_verification_link(base_url, email):
     user = CustomUser.objects.filter(email=email).first()
@@ -180,8 +187,8 @@ class PasswordResetRequestView(APIView):
         email = request.data.get("email")
         user = CustomUser.objects.filter(email=email).first()
         otp = random.randint(100000, 999999)
-        if user:
-            token = default_token_generator.make_token(user)
+        if user and user.is_active:
+            # token = default_token_generator.make_token(user)
             subject="Password Reset Request"
             html_content = (
                 f"""<p>Here's the otp to reset your password: <strong>{otp}</strong>. It expires in the next 1 hour.</p>
