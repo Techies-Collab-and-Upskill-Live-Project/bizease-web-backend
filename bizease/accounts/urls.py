@@ -10,5 +10,5 @@ urlpatterns = [
     path('verify-email/<uidb64>/<token>/', views.EmailVerificationView.as_view()),
     path('password-reset', views.PasswordResetRequestView.as_view()),
     path('password-reset-confirm', views.PasswordResetConfirmView.as_view()),
-    path('google-login/',views.GoogleAuthView.as_view()),  # Optional
+    path('google-login',views.GoogleAuthView.as_view()),  # Optional
 ]

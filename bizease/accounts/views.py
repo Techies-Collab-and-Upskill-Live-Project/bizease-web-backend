@@ -24,6 +24,7 @@ import os
 import requests
 import random
 from datetime import datetime, timezone, timedelta
+from google_auth_oauthlib.flow import InstalledAppFlow
 
 
 def get_tokens_for_user(user):
@@ -218,40 +219,28 @@ class PasswordResetConfirmView(APIView):
             return Response({"detail": "Password has been reset."}, status=200)
         return Response({"detail": "Invalid or expired otp"}, status=400)
 
-	
-GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 
 class GoogleAuthView(APIView):
-    def post(self, request):
-        id_token = request.data.get("id_token")
-        if not id_token:
-            return Response({"detail": "ID token is required"}, status=400)
+    def post(self, request, **kwargs):
+        email=request.data.get("email")
+        name=request.data.get("name")
 
-        # Verify token with Google
-        response = requests.get(GOOGLE_TOKEN_INFO_URL, params={'id_token': id_token})
-        if response.status_code != 200:
-            return Response({"detail": "Invalid Google token"}, status=400)
+        if not email or not name:
+            return Response({"detail": "email or name field"}, status=400)
 
-        user_info = response.json()
-        email = user_info.get("email")
-        full_name = user_info.get("name")
-
-        if not email:
-            return Response({"detail": "Google token did not return email"}, status=400)
-
-        # Check if user exists
-        user, created = CustomUser.objects.get_or_create(
-            email=email,
-            defaults={
-                "full_name": full_name,
-                "business_name": f"{full_name}'s Biz",
-                "business_type": "Sole proprietorship",  # default
-                "currency": "NGN",
-                "country": "Nigeria",
-                "state": "",
-                "password": CustomUser.objects.make_random_password(),
-            }
-        )
+        try:
+            user = CustomUser.objects.get(email=email)
+        except CustomUser.DoesNotExist:
+            user = CustomUser(
+                full_name=name,
+                business_name=f"{name}'s Biz",
+                business_type="Sole proprietorship",  # default
+                currency="NGN",
+                country="Nigeria",
+                state=""
+            )
+            user.set_password(''.join(random.choices(string.ascii_uppercase + string.digits, k=10)))
+            user.save()
 
         tokens = get_tokens_for_user(user)
         return Response({

@@ -1,8 +1,11 @@
 from rest_framework_simplejwt.views import TokenObtainPairView,TokenRefreshView, TokenBlacklistView
 from django.contrib import admin
 from django.urls import path, include, re_path
-from django.http import HttpResponseNotFound, HttpResponseServerError
+from django.http import HttpResponseNotFound, HttpResponseServerError, HttpResponse
 from django.shortcuts import render
+from google.oauth2 import id_token
+from rest_framework.decorators import api_view
+
 
 def docs_view(request, **kwargs):
   return render(request, "index.html")
@@ -16,9 +19,7 @@ urlpatterns = [
   re_path(r'^(?P<version>(v1))/token/obtain/$', TokenObtainPairView.as_view(), name='token_obtain_pair'),
   re_path(r'^(?P<version>(v1))/token/refresh/$', TokenRefreshView.as_view(), name='token_refresh'),
   re_path(r'^(?P<version>(v1))/token/blacklist/$', TokenBlacklistView.as_view(), name='token_blacklist'),
-  re_path(r'^(?P<version>(v1))/api-docs/$', docs_view),
-  re_path(r'^(?P<version>(v1))/auth/social/',  include('allauth.socialaccount.urls')), # Google login (Oauth)
-  # re_path(r'^(?P<version>(v1))/accounts/', include('allauth.urls')),  # includes Google OAuth
+  re_path(r'^(?P<version>(v1))/api-docs/$', docs_view)
 ]
 
 def custom_404_view(request, exception):
