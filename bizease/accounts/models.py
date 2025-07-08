@@ -68,6 +68,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 	is_staff = models.BooleanField(default=False)
 	is_active = models.BooleanField(default=False)
 	email_verification_token = models.CharField(max_length=64, null=True)
+	passwd_reset_otp_with_time_created = models.CharField(max_length=64, null=True)
 
 	USERNAME_FIELD = 'email'
 	REQUIRED_FIELDS = []

@@ -22,6 +22,8 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 import os
 import requests
+import random
+from datetime import datetime, timezone, timedelta
 
 
 def get_tokens_for_user(user):
@@ -173,36 +175,48 @@ class LogoutView(APIView):
         return Response({"detail": "User logged out"}, status=status.HTTP_200_OK)
 	
 class PasswordResetRequestView(APIView):
-    def post(self, request):
+    def post(self, request, **kwargs):
         email = request.data.get("email")
         user = CustomUser.objects.filter(email=email).first()
+        otp = random.randint(100000, 999999)
         if user:
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            reset_link = f"{request.get_host()}/auth/password-reset-confirm/{uid}/{token}/"
-            send_mail(
-                subject="Password Reset Request",
-                message=f"Click the link to reset your password: {reset_link}",
-                from_email=os.getenv("EMAIL_HOST_USER"),
-                recipient_list=[email],
+            subject="Password Reset Request"
+            html_content = (
+                f"""<p>Here's the otp to reset your password: <strong>{otp}</strong>. It expires in the next 1 hour.</p>
+                <p>If you didn't request for a password reset, please ignore this email</p>"""
             )
+            text_content = (
+                f"Here's the otp to reset your password: {otp}. It expires in the next 1 hour.\n"
+                "If you didn't request for a password reset, please ignore this email"
+            )
+            mail = EmailMultiAlternatives(subject, text_content, os.getenv("EMAIL_HOST_USER"), [email])
+            mail.attach_alternative(html_content, "text/html")
+            mail.send()
+            user.passwd_reset_otp_with_time_created = str(otp) + "_" + datetime.now(timezone.utc).isoformat()
+            user.save()
+
         # Always return success to prevent user enumeration
         return Response({"detail": "If the email is valid, a reset link has been sent."}, status=200)
 
 class PasswordResetConfirmView(APIView):
-    def post(self, request, uidb64, token):
+    def post(self, request, **kwargs):
         try:
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = CustomUser.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
-            return Response({"detail": "Invalid link"}, status=400)
+            user = CustomUser.objects.get(email=request.data.get("email"))
+        except (CustomUser.DoesNotExist):
+            return Response({"detail": "Invalid email"}, status=400)
 
-        if default_token_generator.check_token(user, token):
+        values = user.passwd_reset_otp_with_time_created.split("_")
+        valid_otp = values[0]
+        time_created = values[1]
+        otp_expired = (datetime.now(timezone.utc) - datetime.fromisoformat(time_created)) > timedelta(hours=1)
+
+        if request.data.get("otp") == valid_otp and not otp_expired:
             new_password = request.data.get("password")
             user.set_password(new_password)
             user.save()
             return Response({"detail": "Password has been reset."}, status=200)
-        return Response({"detail": "Invalid or expired token"}, status=400)
+        return Response({"detail": "Invalid or expired otp"}, status=400)
 
 	
 GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo"

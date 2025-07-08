@@ -8,7 +8,7 @@ urlpatterns = [
     path('logout', views.LogoutView.as_view()),
     path('profile', views.ProfileView.as_view()),
     path('verify-email/<uidb64>/<token>/', views.EmailVerificationView.as_view()),
-    path('password-reset/', views.PasswordResetRequestView.as_view()),
-    path('password-reset-confirm/<uidb64>/<token>/', views.PasswordResetConfirmView.as_view()),
+    path('password-reset', views.PasswordResetRequestView.as_view()),
+    path('password-reset-confirm', views.PasswordResetConfirmView.as_view()),
     path('google-login/',views.GoogleAuthView.as_view()),  # Optional
 ]
