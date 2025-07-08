@@ -134,10 +134,12 @@ paths:
         - Auth
       summary: Register a new User on the server.
       description: 
-        Validates the body of the request and creates a new user in the database. It also sends an
-        http response with a json request body containing a refresh and access jwt token
+        Validates the body of the request and creates a new user in the database and sends an
+        email verification link to the email of the new user if the email actually exists. Without
+        this verification step, the user would be unable to login using the credentials of the newly
+        created account.
       requestBody:
-        description: Create a new user in the database with the validated request body
+        description: Create a new user in the database with the validated request body and send a verification email
         content:
           application/json:
             schema:
@@ -166,8 +168,8 @@ paths:
                 business_type:
                   type: string
       responses:
-        '200':
-          description: Successful operation
+        '201':
+          description: New unverified User account has been created
           content:
             application/json:
               schema:
@@ -175,22 +177,7 @@ paths:
                 properties:
                   detail:
                     type: string
-                    example: User Created successfully
-                  data:
-                    type: object
-                    properties:
-                      access:
-                        type: string
-                        example: 
-                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
-                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
-                      refresh:
-                        type: string
-                        example: 
-                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
-                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+                    example: User account created. Email verification has been sent
         '400':
           description: 
             Invalid Request Body. Response Body is a json object containing a 'detail' field that maps 
@@ -215,6 +202,60 @@ paths:
           description: Unexpected server error while trying to create the new user
           $ref: "#/components/errors/Server500"
 
+  /accounts/verify-email/{uidb64}/{token}/:
+    post:
+      tags:
+        - Auth
+      summary: Verify a User's email
+      description: 
+        Verify the user's email and redirects the client to the frontend's login page.
+        This endpoint isn't needed by the frontend but it's included for completeness
+      parameters:
+        - name: uidb64
+          in: path
+          description: Base-64 encoded user id
+          required: true
+          schema:
+            type: string
+        - name: token
+          in: path
+          description: The verification token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User email verified.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: User email verified.
+        '400':
+          description: Invalid verification token
+          content:
+            oneOf:
+              - application/json:
+                schema:
+                  type: object
+                  properties:
+                    detail:
+                      type: string
+                      example: Invalid or expired token
+              - application/json:
+                schema:
+                  type: object
+                  properties:
+                    detail:
+                      type: string
+                      example: Invalid link
+        '500':
+          description: Unexpected Server error
+          $ref: "#/components/errors/Server500"
+    
   /accounts/login/:
     post:
       tags:
@@ -222,10 +263,10 @@ paths:
       summary: Logs in an existing User on the server.
       description: 
         Logs in a User using the email and password fields in the request body. The email and password
-        must belong to an existing user. The http json response body also contains a refresh and 
-        access jwt token used to maintain the newly logged-in User's session
+        must belong to an existing user. The email must have also been verified. The http json response 
+        body also contains a refresh and access jwt token used to maintain the newly logged-in User's session
       requestBody:
-        description: Create a new user in the database with the validated request body
+        description: User correct email and password
         content:
           application/json:
             schema:
@@ -288,6 +329,171 @@ paths:
         '500':
           description: Unexpected Server Error while trying to log the user in
           $ref: "#/components/errors/Server500"
+
+  /accounts/verification-request/:
+    post:
+      tags:
+        - Auth
+      summary: Manually request for an email verification link.
+      description: 
+        Sends a new email verification link to a specified email invalidating all other 
+        links sent to the same email
+      requestBody:
+        description: Send a verification link to an email
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: Email verification has been sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Email verification has been sent
+
+        '500':
+          description: Unexpected Server Error while trying to send the email
+          $ref: "#/components/errors/Server500"
+
+  /accounts/password-reset/:
+    post:
+      tags:
+        - Auth
+      summary: Send a password reset otp to a user's email
+      description: 
+        Send a password reset otp to a verified user's email address
+      requestBody:
+        description: Veriried user email that the otp would be sent to
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: If the email is valid, a password reset otp has been sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: If the email is valid, a password reset otp has been sent.
+
+        '500':
+          description: Unexpected Server Error while trying to send the otp
+          $ref: "#/components/errors/Server500"
+
+  /accounts/password-reset-confirm/:
+    post:
+      tags:
+        - Auth
+      summary: Change a user password using a valid otp
+      description: 
+        Change a user's password using a valid otp that was previously
+        received from the server
+      requestBody:
+        description: The new password and he otp for validting the request
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                otp:
+                  type: string
+                password:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: Password has been reset.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Password has been reset.
+
+        '500':
+          description: Unexpected Server Error while trying to send the email
+          $ref: "#/components/errors/Server500"
+
+  /accounts/google-login/:
+    post:
+      tags:
+        - Auth
+      summary: Sign user in using google
+      description: 
+        Sign a user in using their google credetials. New emails and others credetials
+        posted to this endpoint won't be verified.
+      requestBody:
+        description: Google account credetials
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                name:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: Password has been reset.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Login successful
+                  data:
+                    type: object
+                    properties:
+                      access:
+                        type: string
+                        example: 
+                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
+                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+                      refresh:
+                        type: string
+                        example: 
+                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
+                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+        '400':
+          description: Invalid email or name field
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Invalid email or name field
+
+        '500':
+          description: Unexpected Server Error while trying to send the email
+          $ref: "#/components/errors/Server500"
+
   /token/refresh/:
     post:
       tags:
