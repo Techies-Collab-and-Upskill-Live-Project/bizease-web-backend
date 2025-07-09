@@ -52,7 +52,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 	date_joined = models.DateTimeField(_("date joined"), default=timezone.now)
 	is_staff = models.BooleanField(default=False)
 	is_active = models.BooleanField(default=False)
-	email_verification_token = models.CharField(max_length=64, null=True)
+	email_verification_token = models.CharField(max_length=64, null=True) # The time created in iso utc format is also appended to the token
 	passwd_reset_otp_with_time_created = models.CharField(max_length=64, null=True)
 
 	USERNAME_FIELD = 'email'

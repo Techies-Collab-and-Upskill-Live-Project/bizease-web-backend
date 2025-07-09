@@ -44,61 +44,50 @@ https://adedamola.pythonanywhere.com/
 
 
 class EmailVerificationView(APIView):
-    def post(self, request, version, uidb64, token):
+    def post(self, request, version):
         try:
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = CustomUser.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
-            return Response({"detail": "Invalid link"}, status=400) # shouldn't it be a redirect to the frontend?
+            user = CustomUser.objects.get(email=request.data.get("email"))
+        except (CustomUser.DoesNotExist):
+            return Response({"detail": "Invalid email"}, status=400)
 
-        if user.email_verification_token == token and default_token_generator.check_token(user, token):
+        values = user.email_verification_token.split("_")
+        valid_otp = values[0]
+        time_created = values[1]
+        otp_expired = (datetime.now(timezone.utc) - datetime.fromisoformat(time_created)) > timedelta(hours=24)
+
+        if request.data.get("otp") == valid_otp and not otp_expired:
             user.is_active = True
             user.email_verification_token = None
             user.save()
-            tokens = get_tokens_for_user(newUser)
-            return Response({"detail": "User email verified."}, status=200) # shouldn't it be a redirect to the frontend?
-        return Response({"detail": "Invalid or expired token"}, status=400) # shouldn't it be a redirect to the frontend?
+            return Response({"detail": "User email verified."}, status=200)
+        return Response({"detail": "Invalid or expired otp"}, status=400)
 
 
-class SendEmailVerification(APIView):
-    def post(self, request, version, email):
-        send_email_verification_link(request.get_host(), newUser.email)
-        return Response({"detail": "Email verification has been sent"}, status=status.HTTP_200_OK)
-
-
-def send_email_verification_link(base_url, email):
+def send_email_verification_code(base_url, email):
     user = CustomUser.objects.filter(email=email).first()
-
+    otp = random.randint(100000, 999999)
     if user:
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        user.email_verification_token = token
-        subject = "Bizease Email Verification Request"
-
-        if os.getenv('ENVIRONMENT') == "production":
-            scheme = 'https://'
-        else:
-            scheme = 'http://'
-
-        reset_link = f"{scheme}{base_url}/v1/accounts/verify-email/{uid}/{token}/"
+        subject="Bizease Email Verification Request"
         html_content = (
-            f"""
-            <p>Someone has created a Bizease account with this email address. If this was you, click the button below to verify your email address</p>
-            <form method='POST' action='{reset_link}'>
-            <button type="submit" style="padding:10px 20px; background-color: #0052CC; border-radius: 10px;color: #ffffff; font-weight: 600; border-width: 0">
-                Verify Email
-            </button>
-            </form>
-            <p>This link will expire in the next 24 hours. If you didn't create this account, just ignore this email.</p>"""
+            f"""<p>Here's the otp to verify your email address: <strong>{otp}</strong>. It expires in the next 24 hours.</p>
+            <p>If you didn't create this account, just ignore this email.</p>"""
         )
         text_content = (
-            "Someone has created a Bizease account with this email address. If this was you, click the link below to verify your email address\n"
-            f"{reset_link}\nThis link will expire in the next 24 hours. If you didn't create this account, just ignore this email."
+            f"Here's the otp to verify your email address: <strong>{otp}</strong>. It expires in the next 24 hours.\n"
+            "IIf you didn't create this account, just ignore this email."
         )
         mail = EmailMultiAlternatives(subject, text_content, os.getenv("EMAIL_HOST_USER"), [email])
         mail.attach_alternative(html_content, "text/html")
         mail.send()
+        user.email_verification_token = str(otp) + "_" + datetime.now(timezone.utc).isoformat()
         user.save()
+
+
+class SendEmailVerification(APIView):
+    def post(self, request, version):
+        send_email_verification_code(request.get_host(), newUser.email)
+        return Response({"detail": "Email verification has been sent"}, status=status.HTTP_200_OK)
+
 
 class SignUpView(APIView):
     parser_classes = [JSONParser]
@@ -109,25 +98,28 @@ class SignUpView(APIView):
             return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         newUser = serializer.save()
-        send_email_verification_link(request.get_host(), newUser.email)
+        send_email_verification_code(request.get_host(), newUser.email)
         return Response({"detail": "User account created. Email verification has been sent"}, status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
-	parser_classes = [JSONParser]
+    parser_classes = [JSONParser]
 
-	def post(self, request, **kwargs):
-		serializer = LoginDataSerializer(data=request.data)
+    def post(self, request, **kwargs):
+        serializer = LoginDataSerializer(data=request.data)
 
-		if not serializer.is_valid():
-			return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-		user = authenticate(request, username=serializer.data["email"], password=serializer.data["password"])
-		if not user:
-			return Response({"detail": "Invalid credentials!"}, status=status.HTTP_401_UNAUTHORIZED)
+        if not CustomUser.objects.get(email=serializer.data["email"]).is_active:
+            return Response({"detail": "Unverified account! Please verify your account."}, status=status.HTTP_401_UNAUTHORIZED)
 
-		tokens = get_tokens_for_user(user)
-		return Response({"detail": "Login successful", "data": tokens}, status=status.HTTP_200_OK)
+        user = authenticate(request, username=serializer.data["email"], password=serializer.data["password"])
+        if not user:
+            return Response({"detail": "Invalid credentials!"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        tokens = get_tokens_for_user(user)
+        return Response({"detail": "Login successful", "data": tokens}, status=status.HTTP_200_OK)
 
 
 class ProfileView(APIView):
@@ -188,7 +180,6 @@ class PasswordResetRequestView(APIView):
         user = CustomUser.objects.filter(email=email).first()
         otp = random.randint(100000, 999999)
         if user and user.is_active:
-            # token = default_token_generator.make_token(user)
             subject="Password Reset Request"
             html_content = (
                 f"""<p>Here's the otp to reset your password: <strong>{otp}</strong>. It expires in the next 1 hour.</p>
@@ -205,7 +196,7 @@ class PasswordResetRequestView(APIView):
             user.save()
 
         # Always return success to prevent user enumeration
-        return Response({"detail": "If the email is valid, a reset link has been sent."}, status=200)
+        return Response({"detail": "If the email is valid, a password reset otp has been sent."}, status=200)
 
 class PasswordResetConfirmView(APIView):
     def post(self, request, **kwargs):
@@ -222,6 +213,7 @@ class PasswordResetConfirmView(APIView):
         if request.data.get("otp") == valid_otp and not otp_expired:
             new_password = request.data.get("password")
             user.set_password(new_password)
+            user.passwd_reset_otp_with_time_created = None
             user.save()
             return Response({"detail": "Password has been reset."}, status=200)
         return Response({"detail": "Invalid or expired otp"}, status=400)
@@ -233,7 +225,7 @@ class GoogleAuthView(APIView):
         name=request.data.get("name")
 
         if not email or not name:
-            return Response({"detail": "email or name field"}, status=400)
+            return Response({"detail": "Invalid email or name field"}, status=400)
 
         try:
             user = CustomUser.objects.get(email=email)
