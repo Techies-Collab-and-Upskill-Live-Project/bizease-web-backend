@@ -6,25 +6,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status,generics
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from django.utils.http import urlsafe_base64_decode
-from django.utils.encoding import force_str
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
-from django.core.mail import send_mail
-from django.urls import reverse
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from allauth.socialaccount.models import SocialAccount
 from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
 import os
-import requests
 import random
 from datetime import datetime, timezone, timedelta
-from google_auth_oauthlib.flow import InstalledAppFlow
+# from google_auth_oauthlib.flow import InstalledAppFlow
 
 
 def get_tokens_for_user(user):
@@ -74,7 +63,7 @@ def send_email_verification_code(base_url, email):
         )
         text_content = (
             f"Here's the otp to verify your email address: <strong>{otp}</strong>. It expires in the next 24 hours.\n"
-            "IIf you didn't create this account, just ignore this email."
+            "If you didn't create this account, just ignore this email."
         )
         mail = EmailMultiAlternatives(subject, text_content, os.getenv("EMAIL_HOST_USER"), [email])
         mail.attach_alternative(html_content, "text/html")
@@ -85,8 +74,17 @@ def send_email_verification_code(base_url, email):
 
 class SendEmailVerification(APIView):
     def post(self, request, version):
-        send_email_verification_code(request.get_host(), newUser.email)
-        return Response({"detail": "Email verification has been sent"}, status=status.HTTP_200_OK)
+        try:
+            newUser = CustomUser.objects.get(email=request.data.get("email"))
+        except CustomUser.DoesNotExist:
+            pass
+
+        else:
+            if not newUser.is_active:
+                send_email_verification_code(request.get_host(), newUser.email)
+        
+        # Always return success to prevent user enumeration
+        return Response({"detail": "Email verification has been sent if the email is registered"}, status=status.HTTP_200_OK)
 
 
 class SignUpView(APIView):
