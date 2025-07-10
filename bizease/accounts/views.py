@@ -91,12 +91,19 @@ class SignUpView(APIView):
     parser_classes = [JSONParser]
 
     def post(self, request, **kwargs):
+        if request.data.get("country"):
+            request.data["country"] = request.data["country"].title()
+
         serializer = SignUpDataSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         newUser = serializer.save()
-        send_email_verification_code(request.get_host(), newUser.email)
+        if request.data.get("bypass_verification"):
+            newUser.is_active = True # makes development easier, remove in final version
+            newUser.save()
+        else:
+            send_email_verification_code(request.get_host(), newUser.email)
         return Response({"detail": "User account created. Email verification has been sent"}, status=status.HTTP_201_CREATED)
 
 
@@ -108,9 +115,13 @@ class LoginView(APIView):
 
         if not serializer.is_valid():
             return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not CustomUser.objects.get(email=serializer.data["email"]).is_active:
-            return Response({"detail": "Unverified account! Please verify your account."}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            user = CustomUser.objects.get(email=serializer.data["email"])
+        except CustomUser.DoesNotExist:
+            return Response({"detail": "Invalid credentials!"}, status=status.HTTP_401_UNAUTHORIZED)
+        else:
+            if not user.is_active:
+                return Response({"detail": "Unverified account! Please verify your account."}, status=status.HTTP_401_UNAUTHORIZED)
 
         user = authenticate(request, username=serializer.data["email"], password=serializer.data["password"])
         if not user:
