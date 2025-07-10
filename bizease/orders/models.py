@@ -42,7 +42,7 @@ class Order(models.Model):
 				continue
 
 			if product.id != None:
-				raise ValueError(f"Ordered product '{product.name}' has already been added to an order.")
+				raise ValueError(f"Ordered product '{product.name}' has already been added to an order.", "custom")
 			product.order_id = self
 			errors = product.save()
 			if errors:
@@ -65,13 +65,13 @@ class Order(models.Model):
 		actual_status_val = self.status
 		self.status = self.status.title()
 
-		if self.status not in ["Pending", "Delivered"]:
-			return  {"order-errors": [f"Invalid Order status value '{self.status}'"]}
+		if self.status not in ["Pending", "Delivered"]: # wouldn't the serializer have validated this field already?
+			return  {"order-errors": [f"Invalid Order status value '{actual_status_val}'"]}
 		elif self.status == "Delivered":
 			self.delivery_date = self.order_date
 
 		if (not self.id and ((type(ordered_products) != list) or not ordered_products)):
-			raise ValueError('An Order must have at least one ordered product')
+			raise ValueError('An Order must have at least one ordered product', "custom")
 
 		products_err_dict = {}
 		try:
@@ -123,17 +123,19 @@ class OrderedProduct(models.Model):
 
 	def assert_only_quantity_is_updated(self, currentDbInstance):
 		if (currentDbInstance.name != self.name):
-			raise ValueError("Only 'quantity' field can be updated")
+			return ["Only 'quantity' field can be updated"]
 		if (currentDbInstance.price != self.price):
-			raise ValueError("Only 'quantity' field can be updated")
+			return ["Only 'quantity' field can be updated"]
 		if (currentDbInstance.order_id != self.order_id):
-			raise ValueError("Only 'quantity' field can be updated")
+			return ["Only 'quantity' field can be updated"]
 		if (currentDbInstance.cummulative_price != self.cummulative_price):
-			raise ValueError("Only 'quantity' field can be updated")
+			return ["Only 'quantity' field can be updated"]
 
 	def update(self, inventory_product):
 		currentDbInstance = OrderedProduct.objects.get(pk=self.id)
-		self.assert_only_quantity_is_updated(currentDbInstance)
+		errors = self.assert_only_quantity_is_updated(currentDbInstance)
+		if errors:
+			return errors
 
 		prev_quantity = currentDbInstance.quantity
 		if self.quantity > (inventory_product.stock_level + prev_quantity):
@@ -147,6 +149,9 @@ class OrderedProduct(models.Model):
 	@transaction.atomic
 	def save(self, *, new_order=True, **kwargs):
 		try:
+			if type(self.order_id) == int:
+				self.order_id = Order.objects.get(pk=self.order_id)
+
 			product_owner_id = self.order_id.product_owner_id
 			inventory_product = Inventory.objects.filter(owner_id=product_owner_id).filter(product_name=self.name).get()
 		except (Inventory.DoesNotExist, Inventory.MultipleObjectsReturned, Order.DoesNotExist, Order.MultipleObjectsReturned):
@@ -166,6 +171,28 @@ class OrderedProduct(models.Model):
 		super().save(**kwargs)
 		if new_order == False:
 			self.order_id.update_total_price()
+
+	@transaction.atomic
+	def delete(self, **kwargs):
+		item_in_stock = True
+		try:
+			order_obj = Order.objects.get(pk=self.order_id.id)
+			inventory_product = Inventory.objects.filter(owner_id=order_obj.product_owner_id).filter(product_name=self.name).get()
+		except (Order.DoesNotExist, Order.MultipleObjectsReturned):
+			raise ValueError("Unexpected Error! ordered item to delete has no Order")
+		except (Inventory.DoesNotExist, Inventory.MultipleObjectsReturned):
+			item_in_stock = False
+
+		if (order_obj.ordered_products.count() == 1):
+			raise ValueError("Can't delete item! An Order must have at least one ordered product")
+
+		order_obj.total_price -= (self.price * self.quantity)
+		order_obj.save()
+		if item_in_stock:
+			inventory_product.stock_level += self.quantity
+			inventory_product.save()
+
+		super().delete(**kwargs)
 
 	def __str__(self):
 		return f"{self.name}({self.quantity})"

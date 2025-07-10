@@ -109,6 +109,106 @@ class OrderModelTest(TestCase):
 		self.assertEqual(Inventory.objects.get(pk=self.product_1.id).stock_level, 470)
 
 
+class OrderedProductModelTest(TestCase):
+	# data_validation, constraints, max_length e.t.c.
+
+	@classmethod
+	def setUp(cls):
+		cls.test_user = CustomUser.objects.create(business_name="melon inc.", full_name="Melon Tusk", email="melontusk@gmail.com", password="12345678")
+		cls.product_1 = Inventory.objects.create(owner=cls.test_user, product_name="Water Melon", price=1500, stock_level=200)
+		cls.product_2 = Inventory.objects.create(owner=cls.test_user, product_name="Winter Melon", price=2000, stock_level=200)
+		cls.product_3 = Inventory.objects.create(owner=cls.test_user, product_name="Cantaloupe", price=1000, stock_level=200)
+
+		cls.test_order = Order(product_owner_id=cls.test_user, client_name="melon-client")
+		cls.item = OrderedProduct(name="Water Melon", quantity=2, price=1500)
+		cls.test_order.ordered_products_objects = [cls.item]
+		cls.test_order.save()
+
+	def test_create_valid_ordered_product(self):
+		new_ordered_item = OrderedProduct(name="Cantaloupe", quantity=4, price=1000)
+		new_ordered_item.order_id = self.test_order
+		new_ordered_item.save(new_order=False)
+
+		new_ordered_item = OrderedProduct.objects.get(pk=new_ordered_item.id)
+		test_order = Order.objects.get(pk=self.test_order.id)
+		self.assertEqual(test_order.total_price, 7000)
+		self.assertEqual(new_ordered_item.order_id.id, test_order.id)
+		self.assertEqual(Inventory.objects.get(product_name="Cantaloupe").stock_level, 196)
+
+	def test_create_invalid_ordered_product(self):
+		new_order = Order(product_owner_id=self.test_user, client_name="bob")
+		new_order.ordered_products_objects = [OrderedProduct(name="Winter Melon", quantity=4, price=2000)]
+		new_order.save()
+
+		item = OrderedProduct(name="Cantaloupe", quantity=204, price=1200)
+		item_1 = OrderedProduct(name="Bitter Melon", quantity=4, price=1000)
+		item.order_id = new_order
+		item_1.order_id = new_order
+
+		errors_1 = item.save()
+		expected_errs = ["Not enough products in stock to satisfy order for 'Cantaloupe'", "Price isn't the same as that of inventory item for 'Cantaloupe'"]
+		self.assertEqual(errors_1, expected_errs)
+		self.assertEqual(item_1.save(), ["'Bitter Melon' doesn't exist in the Inventory."])
+
+	def test_updating_quantity_field(self):
+		existing_ordered_item = OrderedProduct.objects.get(pk=self.item.id)
+		existing_ordered_item.quantity = 10
+		existing_ordered_item.save(new_order=False)
+
+		existing_ordered_item = OrderedProduct.objects.get(pk=self.item.id)
+		self.assertEqual(existing_ordered_item.quantity, 10)
+		self.assertEqual(existing_ordered_item.cummulative_price, 15000)
+		self.test_order = Order.objects.get(pk=self.test_order.id)
+		self.assertEqual(self.test_order.total_price, 15000)
+
+		existing_ordered_item.quantity = 10000
+		errors = existing_ordered_item.save()
+		self.assertEqual(errors, [f"Not enough products in stock to satisfy order for '{existing_ordered_item.name}'"])
+
+	def test_updating_other_fields(self):
+		existing_ordered_item = OrderedProduct.objects.get(pk=self.item.id)
+
+		existing_ordered_item.order_id = Order(product_owner_id=self.test_user, client_name="Ace")
+		self.assertRaises(ValueError, existing_ordered_item.save)
+		existing_ordered_item.cummulative_price = 3
+		self.assertRaises(ValueError, existing_ordered_item.save)
+
+
+	def test_delete_only_ordered_item_of_order(self):
+		self.assertRaises(ValueError, OrderedProduct.objects.get(pk=self.item.id).delete)
+
+	def test_valid_ordered_item_delete(self):
+		new_order = Order(product_owner_id=self.test_user, client_name="bob")
+		item_to_delete = OrderedProduct(name="Winter Melon", quantity=2, price=2000)
+		new_order.ordered_products_objects = [OrderedProduct(name="Cantaloupe", quantity=4, price=1000), item_to_delete]
+		new_order.save()
+
+		self.assertEqual(new_order.total_price, 8000)
+		self.assertEqual(Inventory.objects.get(product_name="Winter Melon").stock_level, 198)
+
+		target_id = item_to_delete.id
+		item_to_delete.delete()
+		self.assertRaises(OrderedProduct.DoesNotExist, OrderedProduct.objects.get, pk=target_id)
+		new_order = Order.objects.get(pk=new_order.id)
+		self.assertEqual(new_order.total_price, 4000)
+		self.assertEqual(Inventory.objects.get(product_name="Winter Melon").stock_level, 200)
+
+	def test_delete_ordered_item_out_of_stock(self):
+		product = Inventory.objects.create(owner=self.test_user, product_name="Snap Melon", price=500, stock_level=100)
+		new_order = Order(product_owner_id=self.test_user, client_name="Marla")
+		item_to_delete = OrderedProduct(name="Snap Melon", quantity=10, price=500)
+		new_order.ordered_products_objects = [OrderedProduct(name="Cantaloupe", quantity=4, price=1000), item_to_delete]
+		new_order.save()
+		product.delete()
+		self.assertEqual(new_order.total_price, 9000)
+
+		target_id = item_to_delete.id
+		item_to_delete.delete()
+		self.assertRaises(OrderedProduct.DoesNotExist, OrderedProduct.objects.get, pk=target_id)
+		new_order = Order.objects.get(pk=new_order.id)
+		self.assertEqual(new_order.total_price, 4000)
+	
+
 class OrderSerializersTest(TestCase):
 	@classmethod
 	def setUp(cls):

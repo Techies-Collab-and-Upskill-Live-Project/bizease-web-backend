@@ -62,25 +62,29 @@ INSTALLED_APPS = [
     
     'allauth',
     'allauth.account',
+    # 'allauth.headless'
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 ]
 
-from decouple import config, Csv
+# from decouple import config, Csv
 
 SITE_ID = 1
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
 AUTH_USER_MODEL = 'accounts.CustomUser'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_USE_TLS = False
+EMAIL_PORT = 465
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+EMAIL_USE_SSL = True
 
 
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'password']
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password'] # WRONG
 REST_USE_JWT = True
 
 
@@ -102,8 +106,9 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7)
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1), # change to 1 hour in the final release
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": False
 }
 
 MIDDLEWARE = [
@@ -116,7 +121,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "allauth.account.middleware.AccountMiddleware",
-
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True

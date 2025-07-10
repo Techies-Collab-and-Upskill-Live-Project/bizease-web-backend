@@ -136,7 +136,7 @@ class InventoryItemView(APIView):
 		except Inventory.DoesNotExist:
 			return Response({"detail": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
 		except Inventory.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
-			return Response({"detail": "Target happens to be multiple items"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+			return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 		inventory_item = InventoryItemSerializer(item)
 		return Response({"data": inventory_item.data}, status=status.HTTP_200_OK)
@@ -147,7 +147,7 @@ class InventoryItemView(APIView):
 		except Inventory.DoesNotExist:
 			return Response({"detail": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
 		except Inventory.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
-			return Response({"detail": "Target happens to be multiple items"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+			return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 		productDataUpdate = InventoryItemSerializer(item, data=request.data, partial=True)
 		if productDataUpdate.is_valid():
@@ -169,7 +169,7 @@ class InventoryItemView(APIView):
 		except Inventory.DoesNotExist:
 			return Response({"detail": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
 		except Inventory.MultipleObjectsReturned: # This shouldn't be possible but it's handled anyways
-			return Response({"detail": "Target happens to be multiple"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+			return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 		del_count, del_dict = item.delete()
 		if (del_count > 0):

@@ -111,8 +111,8 @@ paths:
         - User Profile
       summary: Delete a User's data
       description: 
-        Deletes all of a User's data includinag inventory and orders data that's stored 
-        on the server.The User data to be updated is identified via the jwt Bearer token.
+        Deletes all of a User's data including inventory and orders data that's stored 
+        on the server.The User data to be deleted is identified via the jwt Bearer token.
       responses:
         '200':
           description: Successful operation
@@ -134,10 +134,12 @@ paths:
         - Auth
       summary: Register a new User on the server.
       description: 
-        Validates the body of the request and creates a new user in the database. It also sends an
-        http response with a json request body containing a refresh and access jwt token
+        Validates the body of the request and creates a new user in the database. An email verification 
+        link is then sent to the email of the new user if the email actually exists. Without this 
+        verification step, the user would be unable to login using the credentials of the newly
+        created account.
       requestBody:
-        description: Create a new user in the database with the validated request body
+        description: Create a new user in the database with the validated request body and send a verification email
         content:
           application/json:
             schema:
@@ -166,8 +168,8 @@ paths:
                 business_type:
                   type: string
       responses:
-        '200':
-          description: Successful operation
+        '201':
+          description: New unverified User account has been created
           content:
             application/json:
               schema:
@@ -175,22 +177,7 @@ paths:
                 properties:
                   detail:
                     type: string
-                    example: User Created successfully
-                  data:
-                    type: object
-                    properties:
-                      access:
-                        type: string
-                        example: 
-                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
-                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
-                      refresh:
-                        type: string
-                        example: 
-                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
-                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+                    example: User account created. Email verification has been sent
         '400':
           description: 
             Invalid Request Body. Response Body is a json object containing a 'detail' field that maps 
@@ -215,6 +202,58 @@ paths:
           description: Unexpected server error while trying to create the new user
           $ref: "#/components/errors/Server500"
 
+  /accounts/verify-email/:
+    post:
+      tags:
+        - Auth
+      summary: Verify a User's email using a otp
+      description: 
+        Verify the user's email using a valid 6-character otp string
+      requestBody:
+        description: email and otp that will be used during verification
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                otp:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: User email verified.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: User email verified.
+        '400':
+          description: Invalid verification token
+          content:
+            oneOf:
+              - application/json:
+                schema:
+                  type: object
+                  properties:
+                    detail:
+                      type: string
+                      example: Invalid or expired token
+              - application/json:
+                schema:
+                  type: object
+                  properties:
+                    detail:
+                      type: string
+                      example: Invalid link
+        '500':
+          description: Unexpected Server error
+          $ref: "#/components/errors/Server500"
+    
   /accounts/login/:
     post:
       tags:
@@ -222,10 +261,10 @@ paths:
       summary: Logs in an existing User on the server.
       description: 
         Logs in a User using the email and password fields in the request body. The email and password
-        must belong to an existing user. The http json response body also contains a refresh and 
-        access jwt token used to maintain the newly logged-in User's session
+        must belong to an existing user. The email must have also been verified. The http json response 
+        body also contains a refresh and access jwt token used to maintain the newly logged-in User's session
       requestBody:
-        description: Create a new user in the database with the validated request body
+        description: A User's correct email and password
         content:
           application/json:
             schema:
@@ -255,11 +294,15 @@ paths:
                     properties:
                       access:
                         type: string
+                        description: 
+                          The token used to access resources using http Bearer Auth. Expires 1 hour after creation
                         example: 
                           eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
                           .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
                           .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
                       refresh:
+                        description: 
+                          Used to get new access tokens. Expires 7 days after creation
                         type: string
                         example: 
                           eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
@@ -285,24 +328,205 @@ paths:
                         - This field is required
                       password:
                         - This field is required
+        '401':
+          description: 
+            Invalid credentials or unverified account
+          content:
+            application/json:
+              schema:
+                type: object  
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Invalid credentials!
+                      - Unverified account! Please verify your account.
         '500':
           description: Unexpected Server Error while trying to log the user in
           $ref: "#/components/errors/Server500"
+
+  /accounts/verification-request/:
+    post:
+      tags:
+        - Auth
+      summary: Manually request for an email verification link.
+      description: 
+        Sends a new email verification link to a specified email invalidating all other 
+        links sent to the same email.
+      requestBody:
+        description: email to send the verification link
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: 
+            Email verification has been sent. Note that apart from a server error causing a '500'
+            status code, the server would always return this response whether an email was actually sent or not.
+            This is for security purposes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Email verification has been sent if the email is registered
+
+        '500':
+          description: Unexpected Server Error while trying to send the email
+          $ref: "#/components/errors/Server500"
+
+  /accounts/password-reset/:
+    post:
+      tags:
+        - Auth
+      summary: Send a password reset otp to a user's email
+      description: 
+        Send a password reset otp to a verified user's email address
+      requestBody:
+        description: Veriried user email that the otp would be sent to
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: 
+            If the email is valid, a password reset otp has been sent. Do note that apart from a server error causing a '500'
+            status code, the server would always return this response whether an otp was actually sent or not.
+            This is for security purposes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: If the email is valid, a password reset otp has been sent.
+
+        '500':
+          description: Unexpected Server Error while trying to send the otp
+          $ref: "#/components/errors/Server500"
+
+  /accounts/password-reset-confirm/:
+    post:
+      tags:
+        - Auth
+      summary: Change a user password using a valid otp
+      description: 
+        Change a user's password using a valid otp that was previously
+        received from the server
+      requestBody:
+        description: The new password and he otp for validting the request
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                otp:
+                  type: string
+                password:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: Password has been reset.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Password has been reset.
+
+        '500':
+          description: Unexpected Server Error while trying to send the email
+          $ref: "#/components/errors/Server500"
+
+  /accounts/google-login/:
+    post:
+      tags:
+        - Auth
+      summary: Sign user in using google
+      description: 
+        Sign a user in using their google credetials. New emails and others credentials
+        posted to this endpoint won't be verified.
+      requestBody:
+        description: Google account credetials
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                name:
+                  type: string
+        required: true
+      responses:
+        '200':
+          description: Password has been reset.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Login successful
+                  data:
+                    type: object
+                    properties:
+                      access:
+                        type: string
+                        example: 
+                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
+                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+                      refresh:
+                        type: string
+                        example: 
+                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
+                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+        '400':
+          description: Invalid email or name field
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Invalid email or name field
+
+        '500':
+          description: Unexpected Server Error while trying to send the email
+          $ref: "#/components/errors/Server500"
+
   /token/refresh/:
     post:
       tags:
         - Auth
-      summary: Get a new refresh and access token
+      summary: Get a new access token
       description:
-        Gets a new a access and refresh token. The refresh token used to get this new access token
-        will become valid if the request is successfu;
+        Gets a new access token using a valid refresh token.
       requestBody:
-        description: Generate a new access and refresh token
+        description: The refresh token that will be used to retrieve a new access token
         content:
           application/json:
             schema:
-              required:
-                - refresh
               type: object
               properties:
                 refresh:
@@ -325,13 +549,6 @@ paths:
                           eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
                           .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
                           .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
-                      refresh:
-                        type: string
-                        example: 
-                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
-                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
-
         '400':
           description: Invalid Request body
           content:
@@ -412,6 +629,32 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: order
+          in: query
+          description: 
+            The order in which the orders data should be retrieved as well as the order
+            attribute to use for comparison when ordering the data. The default ordering
+            is ascending. Values prefixed by '-' means the data would be ordered in descending order. 
+            Invalid values will be ignored.
+          schema:
+            type: string
+            enum:
+              - id
+              - -id
+              - order_date
+              - -order_date
+              - -total_price 
+              - total_price
+        - name: status
+          in: query
+          description: 
+            Allows the retrieval of only orders with a specific status. The values are case-insensitive 
+            and invalid values will be ignored
+          schema:
+            type: string
+            enum:
+              - Pending
+              - Delivered
       responses:
         '200':
           description: User orders have been retrieved
@@ -534,7 +777,7 @@ paths:
           description: Unexpected server error
           $ref: "#/components/errors/Server500"
     
-  /orders/{item_id}:
+  /orders/{order_id}:
     get:
       security:
         - bearerAuth: []
@@ -545,7 +788,7 @@ paths:
         Gets a single Order for a User's product by the order's id. The request
         must be made by the authenticated User.
       parameters:
-        - name: item_id
+        - name: order_id
           in: path
           description: The id of the order to be retrieved
           required: true
@@ -574,20 +817,36 @@ paths:
         - User Orders
       summary: Edit a User's product order
       description: 
-        Edit a User's product order
+        Edit a User's product order. Only Orders with a status of 'Pending' can be updated. 
+        Only 'client_name', 'client_email', 'client_phone' and 'status' fields can be updated.
+        Updating an Order's 'status' field to "Delivered" will also update the 'delivery_date' field
       parameters:
-        - name: item_id
+        - name: order_id
           in: path
           description: The id of the order to be updated
           required: true
           schema:
             type: integer
       requestBody:
+        description:
+          All fields are optional but only any of 'client_name', 'client_email', 'client_phone' and 'status' 
+          fields that's to be updated can be in the request body, Any other field will be ignored. Since all
+          fields are optional, an empty request body is also disallowed
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Order"
-        required: true
+              type: object
+              properties:
+                id:
+                  type: integer
+                client_name:
+                  type: string
+                client_email:
+                  type: string
+                client_phone:
+                  type: string
+                status:
+                  type: string
       responses:
         '200':
           description: The Order has been updated
@@ -613,9 +872,9 @@ paths:
         - User Orders
       summary: Deletes an Order for a User's product
       description: 
-        Deletes an Order for a user's orders by the id
+        Deletes an Order for a user's products through the order id
       parameters:
-        - name: item_id
+        - name: order_id
           in: path
           description: The id of the order to be deleted
           required: true
@@ -638,6 +897,251 @@ paths:
         '500':
           description: Unexpected server error
           $ref: "#/components/errors/Server500"
+
+  /orders/{order_id}/ordered-products:
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Add a new ordered product to an existing order
+      description: 
+        Adds a new ordered product to an existing order. The 'total_price' field of the existing order
+        will be updated with the price of the newly added product
+      parameters:
+        - name: order_id
+          in: path
+          description: The id of the order to add a new ordered product
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Product added to Order successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: product added to Order successfully
+        '400':
+          description: 
+            Invalid Request Body. Response Body is a json object containing a 'detail' 
+            field that maps each invalid field name to an array of errors on why the field is invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: object
+                    additionalproperties:
+                      type: array
+                      items:
+                        type: string
+                    example:
+                      product_name:
+                        - This field is required
+                      ordered_products:
+                        - This field is required
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+  /orders/{order_id}/ordered-products/{product_id}:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Get the data of a single ordered product
+      description: 
+        Get the data of a single ordered product using it's id and it's Order id
+      parameters:
+        - name: order_id
+          in: path
+          description: The id of the order that one of it's ordered products is to be retrieved
+          required: true
+          schema:
+            type: integer
+        - name: product_id
+          in: path
+          description: The id of the ordered product to be retrieved
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The Ordered product data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#components/schemas/OrderedProduct"
+        '404':
+          description:
+            The Order or Ordered product with their respective ids was not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Order not found
+                      - Ordered Product not found
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Update an Ordered product's quantity
+      description: 
+        Updates an Ordered product fields. Only the quantity field is allowed to be updated
+      parameters:
+        - name: order_id
+          in: path
+          description: The id of the order that one of it's ordered products is to be updated
+          required: true
+          schema:
+            type: integer
+        - name: product_id
+          in: path
+          description: The id of the ordered product to be updated
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The updated Ordered product data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#components/schemas/OrderedProduct"
+        '400':
+          description: 
+            Invalid Request Body. Response Body is a json object containing a 'detail' field that maps 
+            each invalid field name to an array of errors on why the field is invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: object
+                    additionalproperties:
+                      type: array
+                      items:
+                        type: string
+                    example:
+                      quantity:
+                        - Quantity must be an integer and must be equal to 1 at least
+        '404':
+          description:
+            The order or Ordered product with their respective id was not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Order not found
+                      - Ordered Product not found
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+    delete:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Orders
+      summary: Delete an Ordered product from an Order
+      description: 
+        Deletes an Ordered product from an Order provided the Order is pending, the deleted item is not 
+        the only ordered product of the order and the order exists. The Order's total_price attribute will 
+        also be updated once the ordered product is deleted.
+      parameters:
+        - name: order_id
+          in: path
+          description: The id of the order that one of it's ordered products is to be retrieved
+          required: true
+          schema:
+            type: integer
+        - name: product_id
+          in: path
+          description: The id of the ordered product to be retrieved
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Ordered product deleted successfully
+        '400':
+          description:
+            The ordered product requested to be deleted is either the only ordered product of the order or
+            the order is a 'Delivered' order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Only the Ordered products of Pending Orders can be deleted
+                      - The only ordered product of an order can't be deleted. An Order must have at least one ordered product
+        '404':
+          description:
+            The order or Ordered product with their respective id was not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Order not found
+                      - Ordered Product not found
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
   /orders/stats:
     get:
       security:
@@ -689,6 +1193,35 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: order
+          in: query
+          description: 
+            The order in which the inventory data should be retrieved as well as the 
+            attribute to use for comparison when ordering the data. The default ordering
+            is ascending. Values prefixed by '-' means the data would be ordered in descending order. 
+            Invalid values will be ignored.
+          schema:
+            type: string
+            enum:
+              - id
+              - -id
+              - last_updated
+              - -last_updated
+              - -price 
+              - price
+        - name: low_stock
+          in: query
+          description: 
+            Returns only Inventory items with low stock. It doesn't require a value.
+          schema:
+            type: string
+        - name: query
+          in: query
+          description: 
+            Returns only Inventory items that best fit the value. It can be used to search
+            through the inventory using a string
+          schema:
+            type: string
       responses:
         '200':
           description: Inventory products retrieved successfully
@@ -757,7 +1290,8 @@ paths:
       summary: Add a new product to a User's Inventory
       description: 
         Add a new product to a User's Inventory. The User must be authenticated and a 
-        product name can't be shared among different products in the inventory
+        product name can't be shared among different products in the inventory. The 
+        inventory item's name must be unique
       requestBody:
         content:
           application/json:
@@ -783,24 +1317,31 @@ paths:
                     example: New Item(s) added to inventory
         '400':
           description: 
-            Invalid Request Body. Response Body is a json object containing a 'detail' 
-            field that maps each invalid field name to an array of errors on why the field is invalid
+            Invalid Request Body. In this case, Response Body is a json object containing a 'detail' 
+            field that maps each invalid field name to an array of errors on why the field is invalid. 
+            It could also be an Integrity Error where the new product's name already exist in the inventory
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  detail:
-                    type: object
-                    additionalproperties:
-                      type: array
-                      items:
+                oneOf:
+                  - type: object
+                    properties:
+                      detail:
+                        type: object
+                        additionalproperties:
+                          type: array
+                          items:
+                            type: string
+                        example:
+                          product_name:
+                            - This field is required
+                          ordered_products:
+                            - This field is required
+                  - type: object
+                    properties:
+                      detail:
                         type: string
-                    example:
-                      product_name:
-                        - This field is required
-                      ordered_products:
-                        - This field is required
+                        example: Multiple inventory items with the same 'product_name' are not allowed
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -832,6 +1373,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InventoryItem"
+        '404':
+          description: 
+            Inventory Item with the specified id not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Item not found
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -871,6 +1423,28 @@ paths:
                   detail:
                     type: string
                     example: Inventory item Updated successfully
+        '404':
+          description: 
+            Inventory Item with the specified id not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Item not found
+        '400':
+          description: 
+            Updated Inventory item has the same name as an existing inventory item. This is not allowed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Multiple inventory items with the same 'product_name' are not allowed
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -903,6 +1477,39 @@ paths:
                   detail:
                     type: string
                     example: Inventory item deleted successfully
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+
+  /inventory/stats:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Inventory
+      summary: Get statistics about item's in a User's inventory
+      description: 
+        Gets Total Orders, Total Revenue and Pending Orders of a User's products
+      responses:
+        '200':
+          description: Data Retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_stock_value:
+                    type: integer
+                    example: 479
+                  low_stock_count:
+                    type: integer
+                    example: 4790000
+                  total_products:
+                    type: integer
+                    example: 150
         '401':
           description: Unauthenticated Request. Invalid or absent jwt
           $ref: "#/components/errors/Error401"
@@ -1012,6 +1619,13 @@ components:
           type: string
         status:
           type: string
+        order_date:
+          type: string
+        delivery_date:
+          type: string
+        total_price:
+          type: number
+          format: float
         ordered_products:
           type: array
           items:
@@ -1028,15 +1642,24 @@ components:
           type: string
         business_type:
           type: string
+          enum:
+            - Sole proprietorship
+            - General partnership
+            - Limited partnership
+            - Limited liability partnership (LLP)
+            - C corporation
+            - S corporation
+            - Benefit corporation
+            - Limited liability company (LLC)
+            - Nonprofit
+            - Joint venture
         country:
           type: string
+          description: Most countries are supported
         currency:
           type: string
-          desctiption: Can only be NGN, GBP or USD
-          enum:
-            - NGN
-            - GBP
-            - USD
+          description: Most valid currency codes are supported
+          example: NGN
         state:
           type: string
         rcv_mail_for_new_orders:

@@ -6,18 +6,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status,generics
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from django.utils.http import urlsafe_base64_decode
-from django.utils.encoding import force_str
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
-from django.core.mail import send_mail
-from django.urls import reverse
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from allauth.socialaccount.models import SocialAccount
+from django.core.mail import EmailMultiAlternatives
+import os
+import random
+from datetime import datetime, timezone, timedelta
+# from google_auth_oauthlib.flow import InstalledAppFlow
+
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -34,34 +31,104 @@ def get_tokens_for_user(user):
 https://adedamola.pythonanywhere.com/
 """
 
-class SignUpView(APIView):
-	parser_classes = [JSONParser]
 
-	def post(self, request, **kwargs):
-		serializer = SignUpDataSerializer(data=request.data)
-		if not serializer.is_valid():
-			return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-		else:
-			newUser = serializer.save()
-		tokens = get_tokens_for_user(newUser)
-		return Response({"detail": "User Created successfully", "data": tokens}, status=status.HTTP_201_CREATED)
+class EmailVerificationView(APIView):
+    def post(self, request, version):
+        try:
+            user = CustomUser.objects.get(email=request.data.get("email"))
+        except (CustomUser.DoesNotExist):
+            return Response({"detail": "Invalid email"}, status=400)
+
+        values = user.email_verification_token.split("_")
+        valid_otp = values[0]
+        time_created = values[1]
+        otp_expired = (datetime.now(timezone.utc) - datetime.fromisoformat(time_created)) > timedelta(hours=24)
+
+        if request.data.get("otp") == valid_otp and not otp_expired:
+            user.is_active = True
+            user.email_verification_token = None
+            user.save()
+            return Response({"detail": "User email verified."}, status=200)
+        return Response({"detail": "Invalid or expired otp"}, status=400)
+
+
+def send_email_verification_code(base_url, email):
+    user = CustomUser.objects.filter(email=email).first()
+    otp = random.randint(100000, 999999)
+    if user:
+        subject="Bizease Email Verification Request"
+        html_content = (
+            f"""<p>Here's the otp to verify your email address: <strong>{otp}</strong>. It expires in the next 24 hours.</p>
+            <p>If you didn't create this account, just ignore this email.</p>"""
+        )
+        text_content = (
+            f"Here's the otp to verify your email address: <strong>{otp}</strong>. It expires in the next 24 hours.\n"
+            "If you didn't create this account, just ignore this email."
+        )
+        mail = EmailMultiAlternatives(subject, text_content, os.getenv("EMAIL_HOST_USER"), [email])
+        mail.attach_alternative(html_content, "text/html")
+        mail.send()
+        user.email_verification_token = str(otp) + "_" + datetime.now(timezone.utc).isoformat()
+        user.save()
+
+
+class SendEmailVerification(APIView):
+    def post(self, request, version):
+        try:
+            newUser = CustomUser.objects.get(email=request.data.get("email"))
+        except CustomUser.DoesNotExist:
+            pass
+
+        else:
+            if not newUser.is_active:
+                send_email_verification_code(request.get_host(), newUser.email)
+        
+        # Always return success to prevent user enumeration
+        return Response({"detail": "Email verification has been sent if the email is registered"}, status=status.HTTP_200_OK)
+
+
+class SignUpView(APIView):
+    parser_classes = [JSONParser]
+
+    def post(self, request, **kwargs):
+        if request.data.get("country"):
+            request.data["country"] = request.data["country"].title()
+
+        serializer = SignUpDataSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        newUser = serializer.save()
+        if request.data.get("bypass_verification"):
+            newUser.is_active = True # makes development easier, remove in final version
+            newUser.save()
+        else:
+            send_email_verification_code(request.get_host(), newUser.email)
+        return Response({"detail": "User account created. Email verification has been sent"}, status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
-	parser_classes = [JSONParser]
+    parser_classes = [JSONParser]
 
-	def post(self, request, **kwargs):
-		serializer = LoginDataSerializer(data=request.data)
+    def post(self, request, **kwargs):
+        serializer = LoginDataSerializer(data=request.data)
 
-		if not serializer.is_valid():
-			return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = CustomUser.objects.get(email=serializer.data["email"])
+        except CustomUser.DoesNotExist:
+            return Response({"detail": "Invalid credentials!"}, status=status.HTTP_401_UNAUTHORIZED)
+        else:
+            if not user.is_active:
+                return Response({"detail": "Unverified account! Please verify your account."}, status=status.HTTP_401_UNAUTHORIZED)
 
-		user = authenticate(request, username=serializer.data["email"], password=serializer.data["password"])
-		if not user:
-			return Response({"detail": "Invalid credentials!"}, status=status.HTTP_401_UNAUTHORIZED)
+        user = authenticate(request, username=serializer.data["email"], password=serializer.data["password"])
+        if not user:
+            return Response({"detail": "Invalid credentials!"}, status=status.HTTP_401_UNAUTHORIZED)
 
-		tokens = get_tokens_for_user(user)
-		return Response({"detail": "Login successful", "data": tokens}, status=status.HTTP_200_OK)
+        tokens = get_tokens_for_user(user)
+        return Response({"detail": "Login successful", "data": tokens}, status=status.HTTP_200_OK)
 
 
 class ProfileView(APIView):
@@ -116,74 +183,72 @@ class LogoutView(APIView):
             return Response({"detail": "Something went wrong! Please try again"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response({"detail": "User logged out"}, status=status.HTTP_200_OK)
 	
-import os
 class PasswordResetRequestView(APIView):
-    def post(self, request):
+    def post(self, request, **kwargs):
         email = request.data.get("email")
         user = CustomUser.objects.filter(email=email).first()
-        if user:
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            reset_link = f"{request.get_host()}/auth/password-reset-confirm/{uid}/{token}/"
-            send_mail(
-                subject="Password Reset Request",
-                message=f"Click the link to reset your password: {reset_link}",
-                from_email=os.getenv("EMAIL_HOST_USER"),
-                recipient_list=[email],
+        otp = random.randint(100000, 999999)
+        if user and user.is_active:
+            subject="Password Reset Request"
+            html_content = (
+                f"""<p>Here's the otp to reset your password: <strong>{otp}</strong>. It expires in the next 1 hour.</p>
+                <p>If you didn't request for a password reset, please ignore this email</p>"""
             )
+            text_content = (
+                f"Here's the otp to reset your password: {otp}. It expires in the next 1 hour.\n"
+                "If you didn't request for a password reset, please ignore this email"
+            )
+            mail = EmailMultiAlternatives(subject, text_content, os.getenv("EMAIL_HOST_USER"), [email])
+            mail.attach_alternative(html_content, "text/html")
+            mail.send()
+            user.passwd_reset_otp_with_time_created = str(otp) + "_" + datetime.now(timezone.utc).isoformat()
+            user.save()
+
         # Always return success to prevent user enumeration
-        return Response({"detail": "If the email is valid, a reset link has been sent."}, status=200)
+        return Response({"detail": "If the email is valid, a password reset otp has been sent."}, status=200)
 
 class PasswordResetConfirmView(APIView):
-    def post(self, request, uidb64, token):
+    def post(self, request, **kwargs):
         try:
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = CustomUser.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
-            return Response({"detail": "Invalid link"}, status=400)
+            user = CustomUser.objects.get(email=request.data.get("email"))
+        except (CustomUser.DoesNotExist):
+            return Response({"detail": "Invalid email"}, status=400)
 
-        if default_token_generator.check_token(user, token):
+        values = user.passwd_reset_otp_with_time_created.split("_")
+        valid_otp = values[0]
+        time_created = values[1]
+        otp_expired = (datetime.now(timezone.utc) - datetime.fromisoformat(time_created)) > timedelta(hours=1)
+
+        if request.data.get("otp") == valid_otp and not otp_expired:
             new_password = request.data.get("password")
             user.set_password(new_password)
+            user.passwd_reset_otp_with_time_created = None
             user.save()
             return Response({"detail": "Password has been reset."}, status=200)
-        return Response({"detail": "Invalid or expired token"}, status=400)
-	
-import requests
-GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+        return Response({"detail": "Invalid or expired otp"}, status=400)
 
 
 class GoogleAuthView(APIView):
-    def post(self, request):
-        id_token = request.data.get("id_token")
-        if not id_token:
-            return Response({"detail": "ID token is required"}, status=400)
+    def post(self, request, **kwargs):
+        email=request.data.get("email")
+        name=request.data.get("name")
 
-        # Verify token with Google
-        response = requests.get(GOOGLE_TOKEN_INFO_URL, params={'id_token': id_token})
-        if response.status_code != 200:
-            return Response({"detail": "Invalid Google token"}, status=400)
+        if not email or not name:
+            return Response({"detail": "Invalid email or name field"}, status=400)
 
-        user_info = response.json()
-        email = user_info.get("email")
-        full_name = user_info.get("name")
-
-        if not email:
-            return Response({"detail": "Google token did not return email"}, status=400)
-
-        # Check if user exists
-        user, created = CustomUser.objects.get_or_create(
-            email=email,
-            defaults={
-                "full_name": full_name,
-                "business_name": f"{full_name}'s Biz",
-                "business_type": "Sole proprietorship",  # default
-                "currency": "NGN",
-                "country": "Nigeria",
-                "state": "",
-                "password": CustomUser.objects.make_random_password(),
-            }
-        )
+        try:
+            user = CustomUser.objects.get(email=email)
+        except CustomUser.DoesNotExist:
+            user = CustomUser(
+                full_name=name,
+                business_name=f"{name}'s Biz",
+                business_type="Sole proprietorship",  # default
+                currency="NGN",
+                country="Nigeria",
+                state=""
+            )
+            user.set_password(''.join(random.choices(string.ascii_uppercase + string.digits, k=10)))
+            user.save()
 
         tokens = get_tokens_for_user(user)
         return Response({
