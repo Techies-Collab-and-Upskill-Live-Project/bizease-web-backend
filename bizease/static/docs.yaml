@@ -111,8 +111,8 @@ paths:
         - User Profile
       summary: Delete a User's data
       description: 
-        Deletes all of a User's data includinag inventory and orders data that's stored 
-        on the server.The User data to be updated is identified via the jwt Bearer token.
+        Deletes all of a User's data including inventory and orders data that's stored 
+        on the server.The User data to be deleted is identified via the jwt Bearer token.
       responses:
         '200':
           description: Successful operation
@@ -134,9 +134,9 @@ paths:
         - Auth
       summary: Register a new User on the server.
       description: 
-        Validates the body of the request and creates a new user in the database and sends an
-        email verification link to the email of the new user if the email actually exists. Without
-        this verification step, the user would be unable to login using the credentials of the newly
+        Validates the body of the request and creates a new user in the database. An email verification 
+        link is then sent to the email of the new user if the email actually exists. Without this 
+        verification step, the user would be unable to login using the credentials of the newly
         created account.
       requestBody:
         description: Create a new user in the database with the validated request body and send a verification email
@@ -202,27 +202,25 @@ paths:
           description: Unexpected server error while trying to create the new user
           $ref: "#/components/errors/Server500"
 
-  /accounts/verify-email/{uidb64}/{token}/:
+  /accounts/verify-email/:
     post:
       tags:
         - Auth
-      summary: Verify a User's email
+      summary: Verify a User's email using a otp
       description: 
-        Verify the user's email and redirects the client to the frontend's login page.
-        This endpoint isn't needed by the frontend but it's included for completeness
-      parameters:
-        - name: uidb64
-          in: path
-          description: Base-64 encoded user id
-          required: true
-          schema:
-            type: string
-        - name: token
-          in: path
-          description: The verification token
-          required: true
-          schema:
-            type: string
+        Verify the user's email using a valid 6-character otp string
+      requestBody:
+        description: email and otp that will be used during verification
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                otp:
+                  type: string
+        required: true
       responses:
         '200':
           description: User email verified.
@@ -266,7 +264,7 @@ paths:
         must belong to an existing user. The email must have also been verified. The http json response 
         body also contains a refresh and access jwt token used to maintain the newly logged-in User's session
       requestBody:
-        description: User correct email and password
+        description: A User's correct email and password
         content:
           application/json:
             schema:
@@ -296,11 +294,15 @@ paths:
                     properties:
                       access:
                         type: string
+                        description: 
+                          The token used to access resources using http Bearer Auth. Expires 1 hour after creation
                         example: 
                           eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
                           .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
                           .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
                       refresh:
+                        description: 
+                          Used to get new access tokens. Expires 7 days after creation
                         type: string
                         example: 
                           eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
@@ -326,6 +328,19 @@ paths:
                         - This field is required
                       password:
                         - This field is required
+        '401':
+          description: 
+            Invalid credentials or unverified account
+          content:
+            application/json:
+              schema:
+                type: object  
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Invalid credentials!
+                      - Unverified account! Please verify your account.
         '500':
           description: Unexpected Server Error while trying to log the user in
           $ref: "#/components/errors/Server500"
@@ -337,9 +352,9 @@ paths:
       summary: Manually request for an email verification link.
       description: 
         Sends a new email verification link to a specified email invalidating all other 
-        links sent to the same email
+        links sent to the same email.
       requestBody:
-        description: Send a verification link to an email
+        description: email to send the verification link
         content:
           application/json:
             schema:
@@ -350,7 +365,10 @@ paths:
         required: true
       responses:
         '200':
-          description: Email verification has been sent
+          description: 
+            Email verification has been sent. Note that apart from a server error causing a '500'
+            status code, the server would always return this response whether an email was actually sent or not.
+            This is for security purposes.
           content:
             application/json:
               schema:
@@ -358,7 +376,7 @@ paths:
                 properties:
                   detail:
                     type: string
-                    example: Email verification has been sent
+                    example: Email verification has been sent if the email is registered
 
         '500':
           description: Unexpected Server Error while trying to send the email
@@ -383,7 +401,10 @@ paths:
         required: true
       responses:
         '200':
-          description: If the email is valid, a password reset otp has been sent.
+          description: 
+            If the email is valid, a password reset otp has been sent. Do note that apart from a server error causing a '500'
+            status code, the server would always return this response whether an otp was actually sent or not.
+            This is for security purposes.
           content:
             application/json:
               schema:
@@ -439,7 +460,7 @@ paths:
         - Auth
       summary: Sign user in using google
       description: 
-        Sign a user in using their google credetials. New emails and others credetials
+        Sign a user in using their google credetials. New emails and others credentials
         posted to this endpoint won't be verified.
       requestBody:
         description: Google account credetials
@@ -498,17 +519,14 @@ paths:
     post:
       tags:
         - Auth
-      summary: Get a new refresh and access token
+      summary: Get a new access token
       description:
-        Gets a new a access and refresh token. The refresh token used to get this new access token
-        will become valid if the request is successfu;
+        Gets a new access token using a valid refresh token.
       requestBody:
-        description: Generate a new access and refresh token
+        description: The refresh token that will be used to retrieve a new access token
         content:
           application/json:
             schema:
-              required:
-                - refresh
               type: object
               properties:
                 refresh:
@@ -531,13 +549,6 @@ paths:
                           eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
                           .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
                           .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
-                      refresh:
-                        type: string
-                        example: 
-                          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-                          .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0
-                          .KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
-
         '400':
           description: Invalid Request body
           content:
@@ -808,7 +819,7 @@ paths:
       description: 
         Edit a User's product order. Only Orders with a status of 'Pending' can be updated. 
         Only 'client_name', 'client_email', 'client_phone' and 'status' fields can be updated.
-        updating an Order's 'status' field to "Delivered" will also update the 'delivery_date' field
+        Updating an Order's 'status' field to "Delivered" will also update the 'delivery_date' field
       parameters:
         - name: order_id
           in: path
@@ -817,11 +828,25 @@ paths:
           schema:
             type: integer
       requestBody:
+        description:
+          All fields are optional but only any of 'client_name', 'client_email', 'client_phone' and 'status' 
+          fields that's to be updated can be in the request body, Any other field will be ignored. Since all
+          fields are optional, an empty request body is also disallowed
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Order"
-        required: true
+              type: object
+              properties:
+                id:
+                  type: integer
+                client_name:
+                  type: string
+                client_email:
+                  type: string
+                client_phone:
+                  type: string
+                status:
+                  type: string
       responses:
         '200':
           description: The Order has been updated
@@ -847,7 +872,7 @@ paths:
         - User Orders
       summary: Deletes an Order for a User's product
       description: 
-        Deletes an Order for a user's orders by the id
+        Deletes an Order for a user's products through the order id
       parameters:
         - name: order_id
           in: path
@@ -987,17 +1012,17 @@ paths:
         - User Orders
       summary: Update an Ordered product's quantity
       description: 
-        Updates and Ordered product fields. Only the quantity field is allowed to be updated
+        Updates an Ordered product fields. Only the quantity field is allowed to be updated
       parameters:
         - name: order_id
           in: path
-          description: The id of the order that one of it's ordered products is to be retrieved
+          description: The id of the order that one of it's ordered products is to be updated
           required: true
           schema:
             type: integer
         - name: product_id
           in: path
-          description: The id of the ordered product to be retrieved
+          description: The id of the ordered product to be updated
           required: true
           schema:
             type: integer
@@ -1594,6 +1619,13 @@ components:
           type: string
         status:
           type: string
+        order_date:
+          type: string
+        delivery_date:
+          type: string
+        total_price:
+          type: number
+          format: float
         ordered_products:
           type: array
           items:
@@ -1610,15 +1642,24 @@ components:
           type: string
         business_type:
           type: string
+          enum:
+            - Sole proprietorship
+            - General partnership
+            - Limited partnership
+            - Limited liability partnership (LLP)
+            - C corporation
+            - S corporation
+            - Benefit corporation
+            - Limited liability company (LLC)
+            - Nonprofit
+            - Joint venture
         country:
           type: string
+          description: Most countries are supported
         currency:
           type: string
-          description: Can only be NGN, GBP or USD
-          enum:
-            - NGN
-            - GBP
-            - USD
+          description: Most valid currency codes are supported
+          example: NGN
         state:
           type: string
         rcv_mail_for_new_orders:
