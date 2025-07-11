@@ -19,7 +19,10 @@ class DashBoardView(APIView):
 		dashboard_data["business_name"] = request.user.business_name
 		dashboard_data["currency"] = request.user.currency
 		dashboard_data["language"] = request.user.language
-		products_orders = OrderedProduct.objects.values("name").annotate(total_units_sold=Sum("quantity")).order_by("-total_units_sold")
+		try:
+			products_orders = OrderedProduct.objects.filter(order_id__product_owner_id=request.user.id).values("name").annotate(total_units_sold=Sum("quantity")).order_by("-total_units_sold")
+		except:
+			products_orders = OrderedProduct.objects.values("name").annotate(total_units_sold=Sum("quantity")).order_by("-total_units_sold")
 
 		# top selling product - ordered product with the max sum of quantity
 		if len(products_orders) == 0:
@@ -28,7 +31,7 @@ class DashBoardView(APIView):
 			dashboard_data["top_selling_product"] = products_orders[0]['name']
 
 		# revenue - sum of total_price in orders
-		dashboard_data["revenue"] = Order.objects.aggregate(Sum("total_price"))['total_price__sum']
+		dashboard_data["revenue"] = Order.objects.filter(product_owner_id=request.user.id).aggregate(Sum("total_price"))['total_price__sum']
 
 		orders_serializer = OrderSerializer(
 			list(Order.objects.filter(product_owner_id=request.user.id).filter(status="Pending").order_by("-order_date")[:6]),

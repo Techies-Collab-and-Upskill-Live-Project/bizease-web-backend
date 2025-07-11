@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.http import HttpResponseNotFound, HttpResponseServerError, HttpResponse
 from django.shortcuts import render
-from google.oauth2 import id_token
+
 from rest_framework.decorators import api_view
 
 
