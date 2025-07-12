@@ -16,6 +16,7 @@ urlpatterns = [
   re_path(r'^(?P<version>(v1))/orders/', include('orders.urls')),
   re_path(r'^(?P<version>(v1))/inventory/', include('inventory.urls')),
   re_path(r'^(?P<version>(v1))/dashboard-data/', include('dashboard.urls')),
+  re_path(r'^(?P<version>(v1))/reports/', include('reports.urls')),
   re_path(r'^(?P<version>(v1))/token/obtain/$', TokenObtainPairView.as_view(), name='token_obtain_pair'),
   re_path(r'^(?P<version>(v1))/token/refresh/$', TokenRefreshView.as_view(), name='token_refresh'),
   re_path(r'^(?P<version>(v1))/token/blacklist/$', TokenBlacklistView.as_view(), name='token_blacklist'),
