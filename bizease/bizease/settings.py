@@ -123,7 +123,9 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [os.getenv('ALLOWED_ORIGIN', 'http://localhost:3000')]
+CORS_ALLOWED_ORIGIN_REGEXES = [r"^http://localhost:\d+$"]
+CORS_ALLOW_METHODS = ("DELETE", "GET", "OPTIONS", "POST", "PUT")
 
 ROOT_URLCONF = 'bizease.urls'
 
