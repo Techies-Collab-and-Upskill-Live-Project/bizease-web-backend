@@ -40,6 +40,7 @@ DEBUG = debug_val
 ALLOWED_HOSTS = ['*']
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
+APPEND_SLASH = False
 
 INSTALLED_APPS = [
     'accounts',
