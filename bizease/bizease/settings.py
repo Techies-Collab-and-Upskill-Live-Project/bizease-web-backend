@@ -124,7 +124,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-CORS_ALLOWED_ORIGINS = [os.getenv('ALLOWED_ORIGIN', 'http://localhost:3000')]
+CORS_ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^http://localhost:\d+$"]
 CORS_ALLOW_METHODS = ("DELETE", "GET", "OPTIONS", "POST", "PUT")
 
