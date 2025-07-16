@@ -1516,6 +1516,243 @@ paths:
         '500':
           description: Unexpected server error
           $ref: "#/components/errors/Server500"
+
+  /reports/:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Business Report
+      summary: Get User's business report data
+      description: 
+        Get general report data about the inventory and orders of a User's business over a period of time. Takes
+        optional query parameters that specifies the time period. defaults to all time if the parameter isn't included
+      parameters:
+        - name: period
+          in: query
+          description: 
+            The time period in which the business report data is to be generated from
+          schema:
+            type: string
+            enum:
+              - last-week
+              - last-month
+              - last-6-months
+              - last-year
+        - name: start_date
+          in: query
+          description: 
+            The start date of the time period in which the business report data is to be generated from. If this
+            parameter is present, 'end_date' parameter must also be present and 'period' parameter must be absent.
+            It's a string representing a date in the format 'YYYY-MM-DD'.
+          schema:
+            type: string
+            example: "2025-07-16"
+        - name: end_date
+          in: query
+          description: 
+            The end date of the time period in which the business report data is to be generated from. If this
+            parameter is present, 'start_date' parameter must also be present and 'period' parameter must be absent.
+            It's a string representing a date in the format 'YYYY-MM-DD'.
+          schema:
+            type: string
+            example: "2025-07-26"
+      responses:
+        '200':
+          description: The reports data have been retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      period:
+                        type: string
+                        description: The time range in which the report data was filtered over
+                        example: All time
+                      top_selling_product:
+                        type: string
+                        description:
+                          The name of the product with the highest quantity ordered during the specified period. 
+                          It doesn't matter if it's a pending order or a delivered order
+                      low_stock_items:
+                        type: integer
+                        description:
+                          The number of inventory items that were present during the specified time period and their
+                          stock level is currently less than their low stock threshold
+                      pending_orders:
+                        type: integer
+                        description:
+                          The number of currently pending orders for any of a user's product provided the order was created 
+                          during the specified time period
+                      total_products:
+                        type: integer
+                        description: The total number of products in a User's inventory during the specified time period
+                      total_stock_value:
+                        description: 
+                          The total price of all the items that had been added to a user's inventory during the specified period
+                      total_revenue:
+                        type: integer
+                        description: 
+                          The total price of all the orders for any of a user's product provided the order was created 
+                          during the specified time period
+                      date_revenue_chart_data:
+                        type: array
+                        description: 
+                          An array of objects whose attributes are a date and the revenue made on that date provided the date
+                          is in the specified time period/range 
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              description: A date in the 'YYYY-MM-DD' format
+                            revenue:
+                              type: integer
+                              description: The total price of all orders made for any of a user's product on that date
+                      product_sales_chart_data:
+                        type: array
+                        description: 
+                          An array of objects whose attributes are a product's name and the quantity of the product sold during the
+                          specified time period
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              description: The name of the product
+                            quantity_sold:
+                              type: integer
+                              description: The total price of all orders made for any of a user's product on that date
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '400':
+          description: 
+            Invalid query parameter(s)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Invalid GET parameters. Only period or a combination of start_date and end_date is allowed
+                      - Invalid value for period parameter
+                      - Invalid date format. Use YYYY-MM-DD
+
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"
+  
+  /reports/summary:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - User Business Report
+      summary: Get User's business report data summary
+      description: 
+        Get general report data summary about the inventory and orders of a User's business over a period of time. Takes
+        optional query parameters that specifies the time period. defaults to all time if the parameter isn't included
+      parameters:
+        - name: period
+          in: query
+          description: 
+            The time period in which the business report data summary is to be generated from.
+          schema:
+            type: string
+            example: last-week
+            enum:
+              - last-week
+              - last-month
+              - last-6-months
+              - last-year
+        - name: start_date
+          in: query
+          description: 
+            The start date of the time period in which the business report data summary is to be generated from. If this
+            parameter is present, 'end_date' parameter must also be present and 'period' parameter must be absent.
+            It's a string representing a date in the format 'YYYY-MM-DD'.
+          schema:
+            type: string
+            example: "2025-07-16"
+        - name: end_date
+          in: query
+          description: 
+            The end date of the time period in which the business report data summary is to be generated from. If this
+            parameter is present, 'start_date' parameter must also be present and 'period' parameter must be absent.
+            It's a string representing a date in the format 'YYYY-MM-DD'.
+          schema:
+            type: string
+            example: "2025-07-26"
+      responses:
+        '200':
+          description: User orders have been retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      period:
+                        type: string
+                        description: The time range in which the report data was filtered over
+                        example: All time
+                      summary:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              description:
+                                The name of a specific product
+                            revenue:
+                              type: integer
+                              description:
+                                The revenue generated by a specific period over a period of time. It's is the total price 
+                                of all the orders for a specific product in a user's inventory during a specified time period
+                            quantity_sold:
+                              type: integer
+                              description:
+                                The total amount of a user's product sold during a specified time period
+                            stock_status:
+                              type: string
+                              description:
+                                Describes the current level of the stock. "out of stock" means the item doesn't exist in the 
+                                inventory any longer
+                              enum:
+                                - in stock
+                                - low stock
+                                - out of stock
+
+        '401':
+          description: Unauthenticated Request. Invalid or absent jwt
+          $ref: "#/components/errors/Error401"
+        '400':
+          description: 
+            Invalid query parameter(s)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - Invalid GET parameters. Only period or a combination of start_date and end_date is allowed
+                      - Invalid value for period parameter
+                      - Invalid date format. Use YYYY-MM-DD
+
+        '500':
+          description: Unexpected server error
+          $ref: "#/components/errors/Server500"  
     
 components:
   securitySchemes:
