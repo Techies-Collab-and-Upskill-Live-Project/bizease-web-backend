@@ -116,9 +116,9 @@ class ReportDataView(APIView):
                 .aggregate(Sum("total_price"))["total_price__sum"]
             )
             date_revenue_chart_data = (
-                Order.objects.values("order_date__date")
+                Order.objects
                 .filter(order_date__range=(start_date, end_date))
-                .annotate(revenue=Sum("total_price")) # convert this date_time field?
+                .annotate(revenue=Sum("total_price"), date=F("order_date__date")).values("date", "revenue") # convert this date_time field?
             )
             report_data["date_revenue_chart_data"] = date_revenue_chart_data
             product_sales_chart_data = OrderedProduct.objects.filter(order_id__order_date__range=(start_date, end_date)).values('name').annotate(quantity_sold=Sum("quantity"))
