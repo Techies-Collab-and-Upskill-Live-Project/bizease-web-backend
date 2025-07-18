@@ -116,7 +116,7 @@ class InventoryView(APIView):
 	def post(self, request, **kwargs):
 		serializer = InventoryItemSerializer(data=request.data)
 		if not serializer.is_valid():
-			return Response({"detail": serializer.errors}, status=400)
+			return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 		else:
 			db_saved_item = None
 			try:
@@ -151,10 +151,15 @@ class InventoryItemView(APIView):
 
 		productDataUpdate = InventoryItemSerializer(item, data=request.data, partial=True)
 		if productDataUpdate.is_valid():
+			if productDataUpdate.validated_data.get("field_errors"):
+				return Response({"detail": productDataUpdate.validated_data["field_errors"]}, status=status.HTTP_400_BAD_REQUEST)
 			try:
 				productDataUpdate.save(request.user)
-			except IntegrityError:
-				return Response({"detail": "Multiple inventory items with the same 'product_name' are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
+			except IntegrityError as i:
+				if "user_unique_product" in str(i): # unique-constraint "user_unique_product" violated
+					return Response({"detail": "Multiple inventory items with the same 'product_name' are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
+				else: # check-constraint "price_greater_than_zero" violated (probably)
+					return Response({"detail": "An inventory item's price must be greater than zero"}, status=status.HTTP_400_BAD_REQUEST)
 				
 			return Response({"detail": "Product data updated successful"}, status=status.HTTP_200_OK)
 		else:
