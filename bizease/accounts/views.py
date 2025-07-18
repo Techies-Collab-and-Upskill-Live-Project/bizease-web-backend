@@ -6,14 +6,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status,generics
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework.views import APIView
 from django.core.mail import EmailMultiAlternatives
 import os
 import random
 from datetime import datetime, timezone, timedelta
-# from google_auth_oauthlib.flow import InstalledAppFlow
 
 
 def get_tokens_for_user(user):
@@ -143,7 +141,7 @@ class ProfileView(APIView):
         dataUpdate = ProfileDataSerializer(request.user, data=request.data, partial=True)
         if dataUpdate.is_valid():
             if dataUpdate.validated_data.get("field_errors"):
-                return Response({"detail": dataUpdate.validated_data["field_errors"]}, status=status.HTTP_200_OK)
+                return Response({"detail": dataUpdate.validated_data["field_errors"]}, status=status.HTTP_400_BAD_REQUEST)
             result = dataUpdate.save()
             return Response({"detail": "User data updated successfully"}, status=status.HTTP_200_OK)
         else:
