@@ -5,6 +5,7 @@ from django.urls import reverse
 from rest_framework import status
 from .views import get_tokens_for_user
 from .serializers import ProfileDataSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 
 class AccountsViewsTest(APITestCase):
     @classmethod
@@ -27,6 +28,9 @@ class AccountsViewsTest(APITestCase):
         )
         cls.last_user.set_password("12345678")
         cls.last_user.save()
+
+        cls.refresh_obj = RefreshToken.for_user(cls.test_user)
+        cls.access_token = str(cls.refresh_obj.access_token)
 
     def test_signup_view_with_valid_data(self):
         """ Ensure we can create a new User """
@@ -117,10 +121,9 @@ class AccountsViewsTest(APITestCase):
         self.assertEqual(response.data.get("data"), None)
 
     def test_user_profile_request(self):
-        access_token = get_tokens_for_user(self.test_user)["access"]
-        client = Client(headers={"Authorization": f"Bearer {access_token}"})
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
 
-        response = client.get(reverse("user-account-details", args=["v1"]), format='json')
+        response = self.client.get(reverse("user-account-details", args=["v1"]), format='json')
         expected_data = ProfileDataSerializer(self.test_user).data
         self.assertEqual(response.data["data"], expected_data)
         expected_data_keys = expected_data.keys()
@@ -132,9 +135,9 @@ class AccountsViewsTest(APITestCase):
 
     def test_user_profile_update_request(self):
         access_token = get_tokens_for_user(self.test_user)["access"]
-        client = Client(headers={"Authorization": f"Bearer {access_token}"})
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
 
-        response = client.put(reverse( "user-account-details", args=["v1"]), {"full_name": "Updated Name"}, format='json')
+        response = self.client.put(reverse( "user-account-details", args=["v1"]), {"full_name": "Updated Name"}, format='json')
         self.assertEqual(response.data["detail"], "User data updated successfully")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.test_user = CustomUser.objects.get(pk=self.test_user.id)
@@ -144,9 +147,9 @@ class AccountsViewsTest(APITestCase):
         tokens = get_tokens_for_user(self.last_user)
         access_token = tokens["access"]
         refresh_token = tokens["refresh"]
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + access_token)
 
-        client = Client(headers={"Authorization": f"Bearer {access_token}", "x-session-refresh-token": refresh_token})
-        response = client.delete(reverse("user-account-details", args=["v1"]), format='json')
+        response = self.client.delete(reverse("user-account-details", args=["v1"]), format='json', headers={"x-session-refresh-token": refresh_token})
         self.assertEqual(response.data["detail"], "User data deleted successfully")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertRaises(CustomUser.DoesNotExist, CustomUser.objects.get, pk=self.last_user.id)
