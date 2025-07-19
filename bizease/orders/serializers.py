@@ -27,10 +27,36 @@ class OrderedProductSerializer(serializers.ModelSerializer):
 	price = serializers.DecimalField(max_digits=14, decimal_places=2, validators=[validate_decimal])
 	read_only_fields = ['id', 'name', 'price', 'cummulative_price']
 
-	def update(self):
-		self.instance.quantity = self.validated_data["quantity"]
-		self.instance.save()
+	def update(self, instance, validated_data):
+		errors = {}
+		for key in validated_data:
+			if key != "quantity":
+				errors[key] = ["Unexpected field"]
+		if errors:
+			return {"errors": errors}
 
+		if not validated_data.get("quantity"):
+			return {"errors": {"quantity": "Field not present"}}
+
+		instance.quantity = validated_data["quantity"]
+		errors = instance.save(new_order=False)
+		if errors:
+			return {"errors": errors}
+		else:
+			return {"data": instance}
+
+	def create(self, order):
+		new_instance = OrderedProduct(**self.validated_data, order_id=order)
+		errors = new_instance.save(new_order=False)
+		if errors:
+			return {"errors": errors}
+		else:
+			return {"data": new_instance}
+
+	def save(self, order=None):
+		if (order):
+			return self.create(order)
+		return super().save()
 
 class OrderSerializer(serializers.ModelSerializer):
 	class Meta:
