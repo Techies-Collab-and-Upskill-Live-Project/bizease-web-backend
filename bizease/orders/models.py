@@ -154,8 +154,10 @@ class OrderedProduct(models.Model):
 
 			product_owner_id = self.order_id.product_owner_id
 			inventory_product = Inventory.objects.filter(owner_id=product_owner_id).filter(product_name=self.name).get()
-		except (Inventory.DoesNotExist, Inventory.MultipleObjectsReturned, Order.DoesNotExist, Order.MultipleObjectsReturned):
+		except (Inventory.DoesNotExist, Inventory.MultipleObjectsReturned):
 			return [f"'{self.name}' doesn't exist in the Inventory."]
+		except (Order.DoesNotExist, Order.MultipleObjectsReturned):
+			return [f"'{self.name}' Order doesn't exist."]
 		errors = self.validate_data(inventory_product)
 		if errors:
 			return errors
