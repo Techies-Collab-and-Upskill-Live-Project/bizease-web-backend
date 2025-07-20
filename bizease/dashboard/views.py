@@ -42,6 +42,6 @@ class DashBoardView(APIView):
 		)
 		dashboard_data["pending_orders"] = orders_serializer.data
 		dashboard_data["low_stock_items"] = inventory_serializer.data
-		return Response(dashboard_data, status=status.HTTP_200_OK)
+		return Response({"data": dashboard_data}, status=status.HTTP_200_OK)
 
 		# dashboard_data["top_selling_product"] = OrderedProduct.objects.values("name").annotate(total_units_sold=Sum("quantity"))
