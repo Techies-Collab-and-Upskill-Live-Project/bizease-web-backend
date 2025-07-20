@@ -4,7 +4,7 @@ from inventory.serializers import InventoryItemSerializer
 from django.db.utils import IntegrityError
 from accounts.models import CustomUser
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from datetime import date
 
 class InventorySerializersTest(TestCase):
 	@classmethod
@@ -16,7 +16,7 @@ class InventorySerializersTest(TestCase):
 		)
 		cls.inventory_product = Inventory.objects.create(
 			owner=cls.test_user, product_name="Backpack", description="For Carrying load", low_stock_threshold=0,
-			category="utility", stock_level=55, price=35000
+			category="utility", stock_level=55, price=35000, date_added="2025-07-20"
 		)
 
 	def test_model_instance_serialization(self):
@@ -28,6 +28,7 @@ class InventorySerializersTest(TestCase):
 			"stock_level": 55,
 			"price": "35000.00",
 			"low_stock_threshold": 0,
+			"date_added": "2025-07-20"
 		}
 		serializer_output = InventoryItemSerializer(self.inventory_product).data
 		last_updated = serializer_output.pop("last_updated")
@@ -38,19 +39,22 @@ class InventorySerializersTest(TestCase):
 		data = {
 			"product_name": "introduction to django ",
 			"description": "Learn web dev using django",
-			"category": "ebook", "price": 15000, "stock_level": 20
+			"category": "ebook", "price": 15000, 
+			"stock_level": 20, "date_added": "2025-05-21"
 		}
 		item_serializer = InventoryItemSerializer(data=data)
 		self.assertEqual(item_serializer.is_valid(), True)
 		new_inventory_item = item_serializer.save(self.test_user)
 		self.assertEqual(new_inventory_item.product_name, "Introduction To Django")
 		self.assertEqual(new_inventory_item.category, "Ebook")
+		self.assertEqual(new_inventory_item.date_added, date.fromisoformat("2025-05-21"))
 
 	def Test_inventory_item_creation_through_serializer_with_err(self):
 		data = {
 			"product_name": "introduction to django ",
 			"description": "Learn web dev using django",
-			"category": "ebook", "price": 15000, "stock_level": 20
+			"category": "ebook", "price": 15000, "stock_level": 20,
+			"date_added": "2025-03-31"
 		}
 		item_serializer = InventoryItemSerializer(data=data) 
 		self.assertEqual(item_serializer.is_valid(), True)
@@ -68,7 +72,7 @@ class InventorySerializersTest(TestCase):
 		self.assertEqual(updated_inventory_item.category, "Accessories")
 
 	def test_updating_through_serializer_with_invalid_data(self):
-		existing_item = Inventory.objects.create(owner=self.test_user, product_name="Iphone X", stock_level=55, price=200000)
+		existing_item = Inventory.objects.create(owner=self.test_user, product_name="Iphone X", stock_level=55, price=200000, date_added="2025-07-20")
 		item_serializer = InventoryItemSerializer(self.inventory_product, data={"product_name": "Iphone X"}, partial=True)
 		self.assertEqual(item_serializer.is_valid(), True)
 		self.assertRaises(IntegrityError, item_serializer.save, self.test_user)
@@ -84,7 +88,8 @@ class InventorySerializersTest(TestCase):
 	def test_invalid_monetary_data(self):
 		data = {
 			"product_name": "ENIAC", "category": "computers", 
-			"price": -15000000, "stock_level": -20, "low_stock_threshold": -25
+			"price": -15000000, "stock_level": -20, 
+			"low_stock_threshold": -25, "date_added": "2025-07-20"
 		}
 		item_serializer = InventoryItemSerializer(data=data)
 		self.assertEqual(item_serializer.is_valid(), False)

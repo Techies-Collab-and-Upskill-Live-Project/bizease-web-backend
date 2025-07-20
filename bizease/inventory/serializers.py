@@ -7,9 +7,9 @@ class InventoryItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Inventory
         fields = [
-            'id', 'product_name', 'description', 'stock_level', 'price', 'last_updated', 'low_stock_threshold', 'category'
+            'id', 'product_name', 'description', 'stock_level', 'price', 'last_updated', 'low_stock_threshold', 'category', 'date_added'
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "last_updated"]
 
     def validate(self, data):
         expected_validated_data = {} # will be used to hold only values from Meta.fields
