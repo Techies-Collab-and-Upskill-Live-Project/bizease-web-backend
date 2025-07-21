@@ -5,6 +5,7 @@ from inventory.models import Inventory
 from django.urls import reverse
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from datetime import date
 
 
 class ReportsViewsTest(APITransactionTestCase):
@@ -15,20 +16,20 @@ class ReportsViewsTest(APITransactionTestCase):
 		self.refresh_obj = RefreshToken.for_user(self.test_user)
 		self.access_token = str(self.refresh_obj.access_token)
 
-		self.item_1 = Inventory.objects.create(owner=self.test_user, product_name="Safety Boots", price=65000, stock_level=20)
-		self.item_2 = Inventory.objects.create(owner=self.test_user, product_name="Helmet", price=6000, stock_level=45)
-		self.item_3 = Inventory.objects.create(owner=self.test_user, product_name="Tape", price=4000, stock_level=60)
-		self.item_4 = Inventory.objects.create(owner=self.test_user, product_name="Wheelbarrow", price=150000, stock_level=7, low_stock_threshold=10)
+		self.item_1 = Inventory.objects.create(owner=self.test_user, product_name="Safety Boots", price=65000, stock_level=20, date_added="2024-04-22")
+		self.item_2 = Inventory.objects.create(owner=self.test_user, product_name="Helmet", price=6000, stock_level=45, date_added="2024-05-20")
+		self.item_3 = Inventory.objects.create(owner=self.test_user, product_name="Tape", price=4000, stock_level=60, date_added="2024-07-17")
+		self.item_4 = Inventory.objects.create(owner=self.test_user, product_name="Wheelbarrow", price=150000, stock_level=7, low_stock_threshold=10, date_added="2024-09-20")
 
-		self.order = Order(product_owner_id=self.test_user, client_name="bob", client_email="bob@gmail.com")
+		self.order = Order(product_owner_id=self.test_user, client_name="bob", client_email="bob@gmail.com", order_date="2025-03-10")
 		self.order.ordered_products_objects = [OrderedProduct(name="Wheelbarrow", quantity=1, price=150000), OrderedProduct(name="Helmet", quantity=5, price=6000)]
 		self.order.save()
 
-		self.order_1 = Order(product_owner_id=self.test_user, client_name="Davy Jones", client_email="dv@shipwrecks.ocean", status="Delivered")
+		self.order_1 = Order(product_owner_id=self.test_user, client_name="Davy Jones", client_email="dv@shipwrecks.ocean", status="Delivered", order_date="2025-03-20")
 		self.order_1.ordered_products_objects = [OrderedProduct(name="Wheelbarrow", quantity=1, price=150000)]
 		self.order_1.save()
 
-		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 1", client_phone="08045342896", status="Delivered")
+		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 1", client_phone="08045342896", status="Delivered", order_date="2024-12-02")
 		self.order_2.ordered_products_objects = [
 			OrderedProduct(name="Helmet", quantity=10, price=6000), 
 			OrderedProduct(name="Tape", quantity=4, price=4000), 
@@ -36,7 +37,7 @@ class ReportsViewsTest(APITransactionTestCase):
 		]
 		self.order_2.save()
 
-		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 2")
+		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 2", order_date="2024-10-20")
 		self.order_2.ordered_products_objects = [
 			OrderedProduct(name="Wheelbarrow", quantity=1, price=150000),
 			OrderedProduct(name="Safety Boots", quantity=1, price=65000)
@@ -58,7 +59,9 @@ class ReportsViewsTest(APITransactionTestCase):
 		self.assertEqual(response.data["data"]["total_products"], 4)
 		self.assertEqual(response.data["data"]["total_stock_value"], 2109000)
 		self.assertEqual(response.data["data"]["total_revenue"], 751000)
-		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["revenue"], 751000)
+		print(response.data["data"]["date_revenue_chart_data"])
+		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["revenue"], 150000)
+		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["date"], date.fromisoformat("2025-03-20"))
 		self.assertIn({"name": "Helmet", "quantity_sold": 15}, response.data["data"]["product_sales_chart_data"])
 		self.assertIn({"name": "Safety Boots", "quantity_sold": 3}, response.data["data"]["product_sales_chart_data"])
 		self.assertIn({"name": "Tape", "quantity_sold": 4}, response.data["data"]["product_sales_chart_data"])

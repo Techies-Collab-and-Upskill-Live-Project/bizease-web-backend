@@ -3,22 +3,23 @@ from orders.models import Order, OrderedProduct
 from accounts.models import CustomUser
 from inventory.models import Inventory
 from django.db.utils import IntegrityError
+from datetime import date
 
 
 class OrderModelTest(TestCase):
 	@classmethod
 	def setUp(cls):
 		cls.test_user = CustomUser.objects.create(business_name="Business 3", full_name="Business Man 3", email="businessman3@gmail.com", password="12345678")
-		cls.product_1 = Inventory.objects.create(owner=cls.test_user, product_name="A3 Paper", price=50, stock_level=500)
-		cls.product_2 = Inventory.objects.create(owner=cls.test_user, product_name="Satchet Water", price=30, stock_level=300)
-		cls.product_3 = Inventory.objects.create(owner=cls.test_user, product_name="Sneakers", price=25000, stock_level=150)
+		cls.product_1 = Inventory.objects.create(owner=cls.test_user, product_name="A3 Paper", price=50, stock_level=500, date_added="2025-03-15")
+		cls.product_2 = Inventory.objects.create(owner=cls.test_user, product_name="Satchet Water", price=30, stock_level=300, date_added="2025-04-15")
+		cls.product_3 = Inventory.objects.create(owner=cls.test_user, product_name="Sneakers", price=25000, stock_level=150, date_added="2025-05-15")
 
-		cls.order = Order(product_owner_id=cls.test_user, client_name="naive client", client_email="n_client@gmail.com", client_phone="09012367903", )
+		cls.order = Order(product_owner_id=cls.test_user, client_name="naive client", client_email="n_client@gmail.com", client_phone="09012367903", order_date="2025-07-20")
 		cls.item = OrderedProduct(name="Sneakers", quantity=2, price=25000)
 		cls.order.ordered_products_objects = [cls.item]
 		cls.order.save()
 
-		cls.order_1 = Order(product_owner_id=cls.test_user, client_name="person", client_email="person@gmail.com", client_phone="09012367903", )
+		cls.order_1 = Order(product_owner_id=cls.test_user, client_name="person", client_email="person@gmail.com", client_phone="09012367903", order_date="2025-07-20")
 		cls.item_1 = OrderedProduct(name="Satchet Water", quantity=20, price=30)
 		cls.item_2 = OrderedProduct(name="A3 Paper", quantity=2, price=50)
 		cls.order_1.ordered_products_objects = [cls.item_1, cls.item_2]
@@ -26,7 +27,7 @@ class OrderModelTest(TestCase):
 		# test max_length is enforced
 
 	def test_save_new_order_instance(self):
-		order_1 = Order(product_owner_id=self.test_user, client_name="customer1", client_email="customer1@gmail.com", client_phone="08149672890")
+		order_1 = Order(product_owner_id=self.test_user, client_name="customer1", client_email="customer1@gmail.com", client_phone="08149672890", order_date="2025-07-20")
 		self.assertRaises(ValueError, order_1.save)
 		ordered_product_1 = OrderedProduct(name="Satchet Water", quantity=4, price=30)
 		ordered_product_2 = OrderedProduct(name="A3 Paper", quantity=4, price=50)
@@ -38,7 +39,7 @@ class OrderModelTest(TestCase):
 		self.assertEqual(order_1.client_phone, "08149672890")
 		self.assertEqual(order_1.status, "Pending")
 		self.assertEqual(order_1.total_price, 320)
-		self.assertRegex(order_1.order_date.isoformat().replace('+00:00', 'Z'), r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}Z$')
+		self.assertEqual(order_1.order_date, date.fromisoformat("2025-07-20"))
 		self.assertEqual(order_1.delivery_date, None)
 		self.assertEqual(order_1.ordered_products.count(), 2)
 		ordered_items = order_1.ordered_products.all().order_by("id")
@@ -46,12 +47,12 @@ class OrderModelTest(TestCase):
 		self.assertEqual(ordered_items[1].name, "A3 Paper")
 
 	def test_save_new_order_with_invalid_ordered_item(self):
-		order = Order(product_owner_id=self.test_user, client_name="customer1", client_email="customer1@gmail.com", client_phone="08149672890")
+		order = Order(product_owner_id=self.test_user, client_name="customer1", client_email="customer1@gmail.com", client_phone="08149672890", order_date="2025-07-20")
 		ordered_product = OrderedProduct(name="Invalid item", quantity=4, price=30)
 		order.ordered_products_objects = [ordered_product]
 		self.assertEqual(order.save(), {"Invalid Item": ["'Invalid Item' doesn't exist in the Inventory."]})
 
-		order = Order(product_owner_id=self.test_user, client_name="customer1", client_email="customer1@gmail.com", client_phone="08149672890")
+		order = Order(product_owner_id=self.test_user, client_name="customer1", client_email="customer1@gmail.com", client_phone="08149672890", order_date="2025-07-20")
 		ordered_product = OrderedProduct(name="Satchet Water", quantity=501, price=20)
 		order.ordered_products_objects = [ordered_product]
 		self.assertEqual(order.save(), {
@@ -62,7 +63,7 @@ class OrderModelTest(TestCase):
 		})
 
 	def test_add_new_valid_product_to_order(self):
-		order = Order(product_owner_id=self.test_user, client_name="customer3", client_email="customer3@gmail.com", client_phone="07146372890", )
+		order = Order(product_owner_id=self.test_user, client_name="customer3", client_email="customer3@gmail.com", client_phone="07146372890", order_date="2025-07-20")
 		order.ordered_products_objects = [OrderedProduct(name="Sneakers", quantity=2, price=25000)]
 		order.save()
 		self.assertEqual(Order.objects.get(pk=order.id).total_price, 50000)
@@ -75,7 +76,7 @@ class OrderModelTest(TestCase):
 		# Order.ordered_products.add(ordered_product)
 
 	def test_add_constraint_violating_product_to_order(self):
-		order = Order(product_owner_id=self.test_user, client_name="customer2", client_email="customer2@gmail.com", client_phone="08146272890")
+		order = Order(product_owner_id=self.test_user, client_name="customer2", client_email="customer2@gmail.com", client_phone="08146272890", order_date="2025-07-20")
 		ordered_product_1 = OrderedProduct(name="Satchet Water", quantity=5, price=30)
 		order.ordered_products_objects = [ordered_product_1]
 		order.save()
@@ -89,11 +90,11 @@ class OrderedProductModelTest(TestCase):
 	@classmethod
 	def setUp(cls):
 		cls.test_user = CustomUser.objects.create(business_name="melon inc.", full_name="Melon Tusk", email="melontusk@gmail.com", password="12345678")
-		cls.product_1 = Inventory.objects.create(owner=cls.test_user, product_name="Water Melon", price=1500, stock_level=200)
-		cls.product_2 = Inventory.objects.create(owner=cls.test_user, product_name="Winter Melon", price=2000, stock_level=200)
-		cls.product_3 = Inventory.objects.create(owner=cls.test_user, product_name="Cantaloupe", price=1000, stock_level=200)
+		cls.product_1 = Inventory.objects.create(owner=cls.test_user, product_name="Water Melon", price=1500, stock_level=200, date_added="2025-05-15")
+		cls.product_2 = Inventory.objects.create(owner=cls.test_user, product_name="Winter Melon", price=2000, stock_level=200, date_added="2025-05-15")
+		cls.product_3 = Inventory.objects.create(owner=cls.test_user, product_name="Cantaloupe", price=1000, stock_level=200, date_added="2025-05-15")
 
-		cls.test_order = Order(product_owner_id=cls.test_user, client_name="melon-client")
+		cls.test_order = Order(product_owner_id=cls.test_user, client_name="melon-client", order_date="2025-06-15")
 		cls.item = OrderedProduct(name="Water Melon", quantity=2, price=1500)
 		cls.test_order.ordered_products_objects = [cls.item]
 		cls.test_order.save()
@@ -110,7 +111,7 @@ class OrderedProductModelTest(TestCase):
 		self.assertEqual(Inventory.objects.get(product_name="Cantaloupe").stock_level, 196)
 
 	def test_create_invalid_ordered_product(self):
-		new_order = Order(product_owner_id=self.test_user, client_name="bob")
+		new_order = Order(product_owner_id=self.test_user, client_name="bob", order_date="2025-07-21")
 		new_order.ordered_products_objects = [OrderedProduct(name="Winter Melon", quantity=4, price=2000)]
 		new_order.save()
 
@@ -143,7 +144,7 @@ class OrderedProductModelTest(TestCase):
 		existing_ordered_item = OrderedProduct.objects.get(pk=self.item.id)
 		actual_order = existing_ordered_item.order_id
 
-		new_order = Order(product_owner_id=self.test_user, client_name="Ace")
+		new_order = Order(product_owner_id=self.test_user, client_name="Ace", order_date="2025-06-20")
 		new_ordered_product = OrderedProduct(name="Water Melon", quantity=2, price=1500)
 		new_order.ordered_products_objects = [new_ordered_product]
 		new_order.save()
@@ -171,7 +172,7 @@ class OrderedProductModelTest(TestCase):
 		self.assertRaises(ValueError, OrderedProduct.objects.get(pk=self.item.id).delete)
 
 	def test_valid_ordered_item_delete(self):
-		new_order = Order(product_owner_id=self.test_user, client_name="bob")
+		new_order = Order(product_owner_id=self.test_user, client_name="bob", order_date="2025-07-20")
 		item_to_delete = OrderedProduct(name="Winter Melon", quantity=2, price=2000)
 		new_order.ordered_products_objects = [OrderedProduct(name="Cantaloupe", quantity=4, price=1000), item_to_delete]
 		new_order.save()
@@ -187,8 +188,8 @@ class OrderedProductModelTest(TestCase):
 		self.assertEqual(Inventory.objects.get(product_name="Winter Melon").stock_level, 200)
 
 	def test_delete_ordered_item_out_of_stock(self):
-		product = Inventory.objects.create(owner=self.test_user, product_name="Snap Melon", price=500, stock_level=100)
-		new_order = Order(product_owner_id=self.test_user, client_name="Marla")
+		product = Inventory.objects.create(owner=self.test_user, product_name="Snap Melon", price=500, stock_level=100, date_added="2025-05-15")
+		new_order = Order(product_owner_id=self.test_user, client_name="Marla", order_date="2025-04-20")
 		item_to_delete = OrderedProduct(name="Snap Melon", quantity=10, price=500)
 		new_order.ordered_products_objects = [OrderedProduct(name="Cantaloupe", quantity=4, price=1000), item_to_delete]
 		new_order.save()

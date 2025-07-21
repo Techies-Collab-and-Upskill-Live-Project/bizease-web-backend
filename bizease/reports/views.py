@@ -64,7 +64,7 @@ class ReportDataView(APIView):
         if not start_date and not end_date:
             report_data["period"] = "All time"
             #  Top Selling Product
-            top_product = ( # wht happens when there's actuallya a tie?
+            top_product = ( # what happens when there's actuallya a tie?
                 OrderedProduct.objects
                 .filter(order_id__product_owner_id=request.user)
                 .values("name")
@@ -78,7 +78,7 @@ class ReportDataView(APIView):
             report_data["total_products"] = Inventory.objects.filter(owner=request.user.id).count()
             report_data["total_stock_value"] = Inventory.objects.annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
             report_data["total_revenue"] = Order.objects.filter(product_owner_id=request.user.id).aggregate(Sum("total_price"))["total_price__sum"]
-            date_revenue_chart_data = Order.objects.annotate(date=F("order_date__date")).values("date").annotate(revenue=Sum("total_price")).values("date", "revenue")  # convert this date_time field
+            date_revenue_chart_data = Order.objects.values("order_date").annotate(date=F("order_date"), revenue=Sum("total_price")).order_by("-order_date").values("date", "revenue")
             report_data["date_revenue_chart_data"] = date_revenue_chart_data
             product_sales_chart_data = OrderedProduct.objects.values('name').annotate(quantity_sold=Sum("quantity"))
             report_data["product_sales_chart_data"] = product_sales_chart_data

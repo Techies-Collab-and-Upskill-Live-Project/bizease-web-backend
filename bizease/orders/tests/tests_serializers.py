@@ -3,6 +3,7 @@ from orders.models import Order, OrderedProduct
 from orders.serializers import OrderedProductSerializer, OrderSerializer
 from accounts.models import CustomUser
 from inventory.models import Inventory
+from datetime import date
 
 
 class OrderSerializersTest(TestCase):
@@ -11,11 +12,11 @@ class OrderSerializersTest(TestCase):
 		cls.test_user = CustomUser.objects.create(
 			business_name="Business 2", full_name="Business Man 2", email="businessman2@email.com", password="12345678"
 		)
-		cls.product_1 = Inventory.objects.create(owner=cls.test_user, product_name="Bread", price=500, stock_level=50)
-		cls.product_3 = Inventory.objects.create(owner=cls.test_user, product_name="Pen", price=100, stock_level=105)
-		cls.product_4 = Inventory.objects.create(owner=cls.test_user, product_name="Detergent", price=800, stock_level=75)
+		cls.product_1 = Inventory.objects.create(owner=cls.test_user, product_name="Bread", price=500, stock_level=50, date_added="2025-03-20")
+		cls.product_3 = Inventory.objects.create(owner=cls.test_user, product_name="Pen", price=100, stock_level=105, date_added="2025-05-15")
+		cls.product_4 = Inventory.objects.create(owner=cls.test_user, product_name="Detergent", price=800, stock_level=75, date_added="2025-05-15")
 
-		cls.test_order = Order(product_owner_id=cls.test_user, client_name="client1", client_email="clientemail@gmail.com", client_phone="08048672894")
+		cls.test_order = Order(product_owner_id=cls.test_user, client_name="client1", client_email="clientemail@gmail.com", client_phone="08048672894", order_date="2025-07-20")
 		cls.ordered_product_1 = OrderedProduct(name="Pen", quantity=40, price=100)
 		cls.ordered_product_2 = OrderedProduct(name="Bread", quantity=6, price=500)
 		cls.ordered_product_3 = OrderedProduct(name="Detergent", quantity=3, price=800)
@@ -29,7 +30,7 @@ class OrderSerializersTest(TestCase):
 			"client_name": "client1",
 			"client_email": "clientemail@gmail.com",
 			"client_phone": "08048672894",
-			"order_date": self.test_order.order_date.isoformat().replace('+00:00', 'Z'),
+			"order_date": "2025-07-20",
 			"delivery_date": None,
 			"total_price": 9400,
 			"ordered_products": [
@@ -65,6 +66,7 @@ class OrderSerializersTest(TestCase):
 			"client_name": "good_customer",
 			"client_email": "good_customer@gmail.com",
 			"client_phone": "08134287605",
+			"order_date": "2025-07-20",
 			"ordered_products": [
 				{
 					"name": "Pen",
@@ -92,7 +94,7 @@ class OrderSerializersTest(TestCase):
 		self.assertEqual(new_order.client_phone, "08134287605")
 		self.assertEqual(new_order.status, "Pending")
 		self.assertEqual(new_order.total_price, 1500)
-		self.assertRegex(new_order.order_date.isoformat().replace('+00:00', 'Z'), r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}Z$')
+		self.assertEqual(new_order.order_date, date.fromisoformat("2025-07-20"))
 		self.assertEqual(new_order.delivery_date, None)
 		self.assertEqual(new_order.ordered_products.count(), 2)
 		ordered_items = new_order.ordered_products.all()
@@ -126,6 +128,7 @@ class OrderSerializersTest(TestCase):
 		self.assertEqual(serializer.is_valid(), False)
 
 		self.assertEqual(str(serializer.errors['client_name'][0]), 'This field is required.')
+		self.assertEqual(str(serializer.errors['order_date'][0]), 'This field is required.')
 		self.assertEqual(str(serializer.errors['ordered_products'][0]['name'][0]), 'This field is required.')
 		self.assertEqual(str(serializer.errors['ordered_products'][1]['price'][0]), 'This field is required.')
 		self.assertEqual(str(serializer.errors['ordered_products'][2]['quantity'][0]), 'This field is required.')
@@ -155,7 +158,7 @@ class OrderSerializersTest(TestCase):
 		self.assertEqual(updated_order.client_phone, "07048673894")
 		self.assertEqual(updated_order.status, "Delivered")
 		self.assertEqual(updated_order.total_price, 9400)
-		self.assertRegex(updated_order.order_date.isoformat().replace('+00:00', 'Z'), r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}Z$')
-		self.assertRegex(updated_order.delivery_date.isoformat().replace('+00:00', 'Z'), r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}Z$')
+		self.assertEqual(updated_order.order_date, date.fromisoformat("2025-07-20"))
+		self.assertRegex(updated_order.delivery_date.isoformat(), r'^\d{4}-\d{2}-\d{2}')
 		self.assertEqual(updated_order.ordered_products.count(), 3)
 

@@ -65,9 +65,9 @@ class OrderSerializer(serializers.ModelSerializer):
 			'id', 'client_name', 'client_email', 'client_phone', 'status', 'ordered_products', 'total_price', 'order_date', 'delivery_date'
 		]
 	total_price = serializers.IntegerField(required=False)
-	order_date = serializers.DateTimeField(required=False)
+	order_date = serializers.DateField(required=True)
 	ordered_products = OrderedProductSerializer(many=True)
-	read_only_fields = ['id', 'delivery_date','total_price',]
+	read_only_fields = ['id', 'delivery_date','total_price']
 
 	def create(self, product_owner):
 		ordered_products = self.validated_data["ordered_products"]
@@ -104,10 +104,11 @@ class OrderSerializer(serializers.ModelSerializer):
 		self.instance.client_name = self.validated_data.get('client_name', self.instance.client_name)
 		self.instance.client_email = self.validated_data.get('client_email', self.instance.client_email)
 		self.instance.client_phone = self.validated_data.get('client_phone', self.instance.client_phone)
+		self.instance.order_date = self.validated_data.get('order_date', self.instance.order_date)
 		self.instance.status = self.validated_data.get('status', self.instance.status)
 
 		if self.instance.status == "Delivered":
-			self.instance.delivery_date = timezone.now()
+			self.instance.delivery_date = timezone.now().date()
 
 		try:
 			errors = self.instance.save()

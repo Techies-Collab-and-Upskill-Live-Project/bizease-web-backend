@@ -15,20 +15,20 @@ class DashboardViewTest(APITransactionTestCase):
 		self.refresh_obj = RefreshToken.for_user(self.test_user)
 		self.access_token = str(self.refresh_obj.access_token)
 
-		self.item_1 = Inventory.objects.create(owner=self.test_user, product_name="Safety Boots", price=65000, stock_level=20)
-		self.item_2 = Inventory.objects.create(owner=self.test_user, product_name="Helmet", price=6000, stock_level=45)
-		self.item_3 = Inventory.objects.create(owner=self.test_user, product_name="Tape", price=4000, stock_level=60)
-		self.item_4 = Inventory.objects.create(owner=self.test_user, product_name="Wheelbarrow", price=150000, stock_level=7, low_stock_threshold=10)
+		self.item_1 = Inventory.objects.create(owner=self.test_user, product_name="Safety Boots", price=65000, stock_level=20, date_added="2025-01-12")
+		self.item_2 = Inventory.objects.create(owner=self.test_user, product_name="Helmet", price=6000, stock_level=45, date_added="2025-01-20")
+		self.item_3 = Inventory.objects.create(owner=self.test_user, product_name="Tape", price=4000, stock_level=60, date_added="2025-02-19")
+		self.item_4 = Inventory.objects.create(owner=self.test_user, product_name="Wheelbarrow", price=150000, stock_level=7, low_stock_threshold=10, date_added="2025-03-20")
 
-		self.order = Order(product_owner_id=self.test_user, client_name="bob", client_email="bob@gmail.com")
+		self.order = Order(product_owner_id=self.test_user, client_name="bob", client_email="bob@gmail.com", order_date="2025-02-20")
 		self.order.ordered_products_objects = [OrderedProduct(name="Wheelbarrow", quantity=1, price=150000), OrderedProduct(name="Helmet", quantity=5, price=6000)]
 		self.order.save()
 
-		self.order_1 = Order(product_owner_id=self.test_user, client_name="Davy Jones", client_email="dv@shipwrecks.ocean", status="Delivered")
+		self.order_1 = Order(product_owner_id=self.test_user, client_name="Davy Jones", client_email="dv@shipwrecks.ocean", status="Delivered", order_date="2025-02-22")
 		self.order_1.ordered_products_objects = [OrderedProduct(name="Wheelbarrow", quantity=1, price=150000)]
 		self.order_1.save()
 
-		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 1", client_phone="08045342896", status="Delivered")
+		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 1", client_phone="08045342896", status="Delivered", order_date="2025-03-19")
 		self.order_2.ordered_products_objects = [
 			OrderedProduct(name="Helmet", quantity=10, price=6000), 
 			OrderedProduct(name="Tape", quantity=4, price=4000), 
@@ -36,7 +36,7 @@ class DashboardViewTest(APITransactionTestCase):
 		]
 		self.order_2.save()
 
-		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 2")
+		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 2", order_date="2025-06-20")
 		self.order_2.ordered_products_objects = [
 			OrderedProduct(name="Wheelbarrow", quantity=1, price=150000),
 			OrderedProduct(name="Safety Boots", quantity=1, price=65000)

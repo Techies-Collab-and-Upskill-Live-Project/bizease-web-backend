@@ -10,8 +10,8 @@ class Order(models.Model):
 	client_email = models.CharField(max_length=150, blank=True)
 	client_phone = models.CharField(max_length=150, blank=True)
 	status = models.CharField(choices={"Pending": "Pending", "Delivered": "Delivered"}, default="Pending")
-	order_date = models.DateTimeField(auto_now_add=True)
-	delivery_date = models.DateTimeField(null=True)
+	order_date = models.DateField()
+	delivery_date = models.DateField(null=True)
 	total_price = models.DecimalField(max_digits=14, decimal_places=2, null=True)
 	ordered_products_objects = []
 
