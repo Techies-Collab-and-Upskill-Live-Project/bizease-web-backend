@@ -5,6 +5,13 @@ from inventory.models import Inventory
 from django.urls import reverse
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from unittest.mock import Mock, patch
+from datetime import datetime
+
+class mock_datetime(datetime):
+	@classmethod
+	def now(cls):
+		return datetime(2025, 4, 10)
 
 
 class DashboardViewTest(APITransactionTestCase):
@@ -36,7 +43,7 @@ class DashboardViewTest(APITransactionTestCase):
 		]
 		self.order_2.save()
 
-		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 2", order_date="2025-06-20")
+		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 2", order_date="2025-04-10")
 		self.order_2.ordered_products_objects = [
 			OrderedProduct(name="Wheelbarrow", quantity=1, price=150000),
 			OrderedProduct(name="Safety Boots", quantity=1, price=65000)
@@ -49,7 +56,7 @@ class DashboardViewTest(APITransactionTestCase):
 
 	def test_get_all_time_dashboard_data_with_credentials(self):
 		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
-		response = self.client.get(reverse("dashboard-data", args=["v1"]), format="json")
+		response = self.client.get(reverse("dashboard-data", args=["v1"]), query_params={"period": "all-time"}, format="json")
 
 		self.assertEqual(response.data["data"]["business_name"], "Random sales llc")
 		self.assertEqual(response.data["data"]["currency"], "USD")
@@ -59,6 +66,24 @@ class DashboardViewTest(APITransactionTestCase):
 		self.assertEqual(len(response.data["data"]["pending_orders"]), 2)
 		self.assertEqual(response.data["data"]["pending_orders"][0]["client_name"], "customer 2")
 		self.assertEqual(response.data["data"]["pending_orders"][1]["client_name"], "bob")
+		self.assertEqual(len(response.data["data"]["low_stock_items"]), 1)
+		self.assertEqual(response.data["data"]["low_stock_items"][0]["product_name"], "Wheelbarrow")
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+	@patch("dashboard.views.datetime", mock_datetime)
+	def test_get_last_30_days_dashboard_data_with_credentials(self):
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("dashboard-data", args=["v1"]), format="json")
+
+		self.assertEqual(response.data["data"]["business_name"], "Random sales llc")
+		self.assertEqual(response.data["data"]["currency"], "USD")
+		self.assertEqual(response.data["data"]["top_selling_product"], "Helmet")
+		self.assertEqual(response.data["data"]["revenue"], 421000)
+		self.assertEqual(response.data["data"]["language"], "English")
+		self.assertEqual(len(response.data["data"]["pending_orders"]), 1)
+		self.assertEqual(response.data["data"]["pending_orders"][0]["client_name"], "customer 2")
 		self.assertEqual(len(response.data["data"]["low_stock_items"]), 1)
 		self.assertEqual(response.data["data"]["low_stock_items"][0]["product_name"], "Wheelbarrow")
 
