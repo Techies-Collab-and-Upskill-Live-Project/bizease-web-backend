@@ -24,8 +24,13 @@ class DashBoardView(APIView):
         period = request.GET.get('period')
 
         if period and (len(request.GET.getlist('period')) == 1) and period == "all-time":
-            # should it be filtered over delivered products or not
-            products_orders = OrderedProduct.objects.filter(order_id__product_owner_id=request.user.id).values("name").annotate(total_units_sold=Sum("quantity")).order_by("-total_units_sold")
+
+            products_orders = (
+                OrderedProduct.objects
+                .filter(order_id__product_owner_id=request.user.id)
+                .filter(order_id__status="Delivered").values("name")
+                .annotate(total_units_sold=Sum("quantity")).order_by("-total_units_sold")
+            )
 
             # top selling product - ordered product with the max sum of quantity
             if len(products_orders) == 0:
@@ -34,7 +39,9 @@ class DashBoardView(APIView):
                 dashboard_data["top_selling_product"] = products_orders[0]['name']
 
             # revenue - sum of total_price in orders
-            dashboard_data["revenue"] = Order.objects.filter(product_owner_id=request.user.id).aggregate(Sum("total_price"))['total_price__sum']
+            dashboard_data["revenue"] = (
+                Order.objects.filter(product_owner_id=request.user.id).filter(status="Delivered").aggregate(Sum("total_price"))['total_price__sum']
+            )
 
             orders_serializer = OrderSerializer(
                 list(Order.objects.filter(product_owner_id=request.user.id).filter(status="Pending").order_by("-order_date")[:6]),
@@ -53,8 +60,10 @@ class DashBoardView(APIView):
             start_date = end_date - timedelta(days=30)
 
             products_orders = (
-                OrderedProduct.objects.filter(order_id__order_date__range=(start_date, end_date))
+                OrderedProduct.objects
                 .filter(order_id__product_owner_id=request.user.id)
+                .filter(order_id__order_date__range=(start_date, end_date))
+                .filter(order_id__status="Delivered")
                 .values("name").annotate(total_units_sold=Sum("quantity"))
                 .order_by("-total_units_sold")
             )
@@ -66,10 +75,22 @@ class DashBoardView(APIView):
                 dashboard_data["top_selling_product"] = products_orders[0]['name']
 
             # revenue - sum of total_price in orders
-            dashboard_data["revenue"] = Order.objects.filter(order_date__range=(start_date, end_date)).filter(product_owner_id=request.user.id).aggregate(Sum("total_price"))['total_price__sum']
+            dashboard_data["revenue"] = (
+                Order.objects
+                .filter(product_owner_id=request.user.id)
+                .filter(order_date__range=(start_date, end_date))
+                .filter(status="Delivered")
+                .aggregate(Sum("total_price"))['total_price__sum']
+            )
 
             orders_serializer = OrderSerializer(
-                list(Order.objects.filter(product_owner_id=request.user.id).filter(order_date__range=(start_date, end_date)).filter(status="Pending").order_by("-order_date")[:6]),
+                list(
+                    Order.objects
+                    .filter(product_owner_id=request.user.id)
+                    .filter(order_date__range=(start_date, end_date))
+                    .filter(status="Pending")
+                    .order_by("-order_date")[:6]
+                ),
                 many=True
             )
             inventory_serializer = InventoryItemSerializer(

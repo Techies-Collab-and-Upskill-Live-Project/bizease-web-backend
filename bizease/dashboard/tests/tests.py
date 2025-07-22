@@ -5,7 +5,7 @@ from inventory.models import Inventory
 from django.urls import reverse
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from datetime import datetime
 
 class mock_datetime(datetime):
@@ -61,7 +61,7 @@ class DashboardViewTest(APITransactionTestCase):
 		self.assertEqual(response.data["data"]["business_name"], "Random sales llc")
 		self.assertEqual(response.data["data"]["currency"], "USD")
 		self.assertEqual(response.data["data"]["top_selling_product"], "Helmet")
-		self.assertEqual(response.data["data"]["revenue"], 751000)
+		self.assertEqual(response.data["data"]["revenue"], 356000)
 		self.assertEqual(response.data["data"]["language"], "English")
 		self.assertEqual(len(response.data["data"]["pending_orders"]), 2)
 		self.assertEqual(response.data["data"]["pending_orders"][0]["client_name"], "customer 2")
@@ -80,7 +80,7 @@ class DashboardViewTest(APITransactionTestCase):
 		self.assertEqual(response.data["data"]["business_name"], "Random sales llc")
 		self.assertEqual(response.data["data"]["currency"], "USD")
 		self.assertEqual(response.data["data"]["top_selling_product"], "Helmet")
-		self.assertEqual(response.data["data"]["revenue"], 421000)
+		self.assertEqual(response.data["data"]["revenue"], 206000)
 		self.assertEqual(response.data["data"]["language"], "English")
 		self.assertEqual(len(response.data["data"]["pending_orders"]), 1)
 		self.assertEqual(response.data["data"]["pending_orders"][0]["client_name"], "customer 2")

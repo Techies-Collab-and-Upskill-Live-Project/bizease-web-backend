@@ -5,8 +5,13 @@ from inventory.models import Inventory
 from django.urls import reverse
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from datetime import date
+from datetime import date, datetime
+from unittest.mock import patch
 
+class mock_django_timezone(datetime):
+	@classmethod
+	def now(cls):
+		return datetime(2025, 3, 20)
 
 class ReportsViewsTest(APITransactionTestCase):
 	def setUp(self):
@@ -21,7 +26,7 @@ class ReportsViewsTest(APITransactionTestCase):
 		self.item_3 = Inventory.objects.create(owner=self.test_user, product_name="Tape", price=4000, stock_level=60, date_added="2024-07-17")
 		self.item_4 = Inventory.objects.create(owner=self.test_user, product_name="Wheelbarrow", price=150000, stock_level=7, low_stock_threshold=10, date_added="2024-09-20")
 
-		self.order = Order(product_owner_id=self.test_user, client_name="bob", client_email="bob@gmail.com", order_date="2025-03-10")
+		self.order = Order(product_owner_id=self.test_user, client_name="bob", client_email="bob@gmail.com", order_date="2025-03-14")
 		self.order.ordered_products_objects = [OrderedProduct(name="Wheelbarrow", quantity=1, price=150000), OrderedProduct(name="Helmet", quantity=5, price=6000)]
 		self.order.save()
 
@@ -58,14 +63,14 @@ class ReportsViewsTest(APITransactionTestCase):
 		self.assertEqual(response.data["data"]["pending_orders"], 2)
 		self.assertEqual(response.data["data"]["total_products"], 4)
 		self.assertEqual(response.data["data"]["total_stock_value"], 2109000)
-		self.assertEqual(response.data["data"]["total_revenue"], 751000)
-		print(response.data["data"]["date_revenue_chart_data"])
+		self.assertEqual(response.data["data"]["total_revenue"], 356000)
+		self.assertEqual(len(response.data["data"]["date_revenue_chart_data"]), 2)
 		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["revenue"], 150000)
 		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["date"], date.fromisoformat("2025-03-20"))
-		self.assertIn({"name": "Helmet", "quantity_sold": 15}, response.data["data"]["product_sales_chart_data"])
-		self.assertIn({"name": "Safety Boots", "quantity_sold": 3}, response.data["data"]["product_sales_chart_data"])
+		self.assertIn({"name": "Helmet", "quantity_sold": 10}, response.data["data"]["product_sales_chart_data"])
+		self.assertIn({"name": "Safety Boots", "quantity_sold": 2}, response.data["data"]["product_sales_chart_data"])
 		self.assertIn({"name": "Tape", "quantity_sold": 4}, response.data["data"]["product_sales_chart_data"])
-		self.assertIn({"name": "Wheelbarrow", "quantity_sold": 3}, response.data["data"]["product_sales_chart_data"])
+		self.assertIn({"name": "Wheelbarrow", "quantity_sold": 1}, response.data["data"]["product_sales_chart_data"])
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 	def test_get_reports_summary_without_credentials(self):
@@ -77,9 +82,134 @@ class ReportsViewsTest(APITransactionTestCase):
 		response = self.client.get(reverse("reports-summary", args=["v1"]), format="json")
 
 		self.assertEqual(response.data["data"]["period"], "All time")
-		self.assertIn({'name': 'Helmet', 'quantity_sold': 15, 'revenue': 90000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
-		self.assertIn({'name': 'Safety Boots', 'quantity_sold': 3, 'revenue': 195000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
+		self.assertIn({'name': 'Helmet', 'quantity_sold': 10, 'revenue': 60000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
+		self.assertIn({'name': 'Safety Boots', 'quantity_sold': 2, 'revenue': 130000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
 		self.assertIn({'name': 'Tape', 'quantity_sold': 4, 'revenue': 16000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
-		self.assertIn({'name': 'Wheelbarrow', 'quantity_sold': 3, 'revenue': 450000.00, 'stock_status': 'low stock'}, response.data["data"]["summary"])
+		self.assertIn({'name': 'Wheelbarrow', 'quantity_sold': 1, 'revenue': 150000.00, 'stock_status': 'low stock'}, response.data["data"]["summary"])
 
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	@patch("reports.views.timezone", mock_django_timezone)
+	def test_get_last_week_reports_with_credentials(self):
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("reports", args=["v1"]), query_params={"period": "last-week"}, format="json")
+
+		self.assertEqual(response.data["data"]["period"], "last-week")
+		self.assertEqual(response.data["data"]["top_selling_product"], "Wheelbarrow")
+		self.assertEqual(response.data["data"]["low_stock_items"], 1)
+		self.assertEqual(response.data["data"]["pending_orders"], 1)
+		self.assertEqual(response.data["data"]["total_products"], 4)
+		self.assertEqual(response.data["data"]["total_stock_value"], 2109000)
+		self.assertEqual(response.data["data"]["total_revenue"], 150000)
+		# print(response.data["data"]["date_revenue_chart_data"])
+		self.assertEqual(len(response.data["data"]["date_revenue_chart_data"]), 1)
+		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["revenue"], 150000)
+		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["date"], date.fromisoformat("2025-03-20"))
+		self.assertEqual([{"name": "Wheelbarrow", "quantity_sold": 1}], list(response.data["data"]["product_sales_chart_data"]))
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	@patch("reports.views.timezone", mock_django_timezone)
+	def test_get_last_month_reports_with_credentials(self):
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("reports", args=["v1"]), query_params={"period": "last-month"}, format="json")
+
+		self.assertEqual(response.data["data"]["period"], "last-month")
+		self.assertEqual(response.data["data"]["top_selling_product"], "Wheelbarrow")
+		self.assertEqual(response.data["data"]["low_stock_items"], 1)
+		self.assertEqual(response.data["data"]["pending_orders"], 1)
+		self.assertEqual(response.data["data"]["total_products"], 4)
+		self.assertEqual(response.data["data"]["total_stock_value"], 2109000)
+		self.assertEqual(response.data["data"]["total_revenue"], 150000)
+		# print(response.data["data"]["date_revenue_chart_data"])
+		self.assertEqual(len(response.data["data"]["date_revenue_chart_data"]), 1)
+		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["revenue"], 150000)
+		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["date"], date.fromisoformat("2025-03-20"))
+		self.assertEqual([{"name": "Wheelbarrow", "quantity_sold": 1}], list(response.data["data"]["product_sales_chart_data"]))
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	@patch("reports.views.timezone", mock_django_timezone)
+	def test_get_last_6_months_with_credentials(self):
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("reports", args=["v1"]), query_params={"period": "last-6-months"}, format="json")
+
+		self.assertEqual(response.data["data"]["period"], "last-6-months")
+		self.assertEqual(response.data["data"]["top_selling_product"], "Helmet")
+		self.assertEqual(response.data["data"]["low_stock_items"], 1)
+		self.assertEqual(response.data["data"]["pending_orders"], 2)
+		self.assertEqual(response.data["data"]["total_products"], 4)
+		self.assertEqual(response.data["data"]["total_stock_value"], 2109000)
+		self.assertEqual(response.data["data"]["total_revenue"], 356000)
+		self.assertEqual(len(response.data["data"]["date_revenue_chart_data"]), 2)
+		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["revenue"], 150000)
+		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["date"], date.fromisoformat("2025-03-20"))
+		self.assertIn({"name": "Helmet", "quantity_sold": 10}, response.data["data"]["product_sales_chart_data"])
+		self.assertIn({"name": "Safety Boots", "quantity_sold": 2}, response.data["data"]["product_sales_chart_data"])
+		self.assertIn({"name": "Tape", "quantity_sold": 4}, response.data["data"]["product_sales_chart_data"])
+		self.assertIn({"name": "Wheelbarrow", "quantity_sold": 1}, response.data["data"]["product_sales_chart_data"])
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	@patch("reports.views.timezone", mock_django_timezone)
+	def test_get_last_year_reports_with_credentials(self):
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("reports", args=["v1"]), query_params={"period": "last-year"}, format="json")
+
+		self.assertEqual(response.data["data"]["period"], "last-year")
+		self.assertEqual(response.data["data"]["top_selling_product"], "Helmet")
+		self.assertEqual(response.data["data"]["low_stock_items"], 1)
+		self.assertEqual(response.data["data"]["pending_orders"], 2)
+		self.assertEqual(response.data["data"]["total_products"], 4)
+		self.assertEqual(response.data["data"]["total_stock_value"], 2109000)
+		self.assertEqual(response.data["data"]["total_revenue"], 356000)
+		self.assertEqual(len(response.data["data"]["date_revenue_chart_data"]), 2)
+		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["revenue"], 150000)
+		self.assertEqual(response.data["data"]["date_revenue_chart_data"][0]["date"], date.fromisoformat("2025-03-20"))
+		self.assertIn({"name": "Helmet", "quantity_sold": 10}, response.data["data"]["product_sales_chart_data"])
+		self.assertIn({"name": "Safety Boots", "quantity_sold": 2}, response.data["data"]["product_sales_chart_data"])
+		self.assertIn({"name": "Tape", "quantity_sold": 4}, response.data["data"]["product_sales_chart_data"])
+		self.assertIn({"name": "Wheelbarrow", "quantity_sold": 1}, response.data["data"]["product_sales_chart_data"])
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	@patch("reports.views.timezone", mock_django_timezone)
+	def test_get_last_week_reports_summary_with_credentials(self):
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("reports-summary", args=["v1"]), query_params={"period": "last-week"}, format="json")
+
+		self.assertEqual(response.data["data"]["period"], "last-week")
+		self.assertEqual(1, len(response.data["data"]["summary"]))
+		self.assertEqual({'name': 'Wheelbarrow', 'quantity_sold': 1, 'revenue': 150000.00, 'stock_status': 'low stock'}, response.data["data"]["summary"][0])
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	@patch("reports.views.timezone", mock_django_timezone)
+	def test_get_last_month_reports_summary_with_credentials(self):
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("reports-summary", args=["v1"]), query_params={"period": "last-month"}, format="json")
+
+		self.assertEqual(1, len(response.data["data"]["summary"]))
+		self.assertEqual({'name': 'Wheelbarrow', 'quantity_sold': 1, 'revenue': 150000.00, 'stock_status': 'low stock'}, response.data["data"]["summary"][0])
+		self.assertEqual(response.data["data"]["period"], "last-month")
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	@patch("reports.views.timezone", mock_django_timezone)
+	def test_get_last_6_months_reports_summary_with_credentials(self):
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("reports-summary", args=["v1"]), query_params={"period": "last-6-months"}, format="json")
+
+		self.assertEqual(response.data["data"]["period"], "last-6-months")
+		self.assertIn({'name': 'Helmet', 'quantity_sold': 10, 'revenue': 60000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
+		self.assertIn({'name': 'Safety Boots', 'quantity_sold': 2, 'revenue': 130000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
+		self.assertIn({'name': 'Tape', 'quantity_sold': 4, 'revenue': 16000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
+		self.assertIn({'name': 'Wheelbarrow', 'quantity_sold': 1, 'revenue': 150000.00, 'stock_status': 'low stock'}, response.data["data"]["summary"])
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	@patch("reports.views.timezone", mock_django_timezone)
+	def test_get_last_year_reports_summary_with_credentials(self):
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("reports-summary", args=["v1"]), query_params={"period": "last-year"}, format="json")
+
+		self.assertEqual(response.data["data"]["period"], "last-year")
+		self.assertIn({'name': 'Helmet', 'quantity_sold': 10, 'revenue': 60000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
+		self.assertIn({'name': 'Safety Boots', 'quantity_sold': 2, 'revenue': 130000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
+		self.assertIn({'name': 'Tape', 'quantity_sold': 4, 'revenue': 16000.00, 'stock_status': 'in stock'}, response.data["data"]["summary"])
+		self.assertIn({'name': 'Wheelbarrow', 'quantity_sold': 1, 'revenue': 150000.00, 'stock_status': 'low stock'}, response.data["data"]["summary"])
 		self.assertEqual(response.status_code, status.HTTP_200_OK)

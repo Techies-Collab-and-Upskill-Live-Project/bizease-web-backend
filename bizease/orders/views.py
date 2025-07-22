@@ -16,7 +16,7 @@ class OrderStatsView(APIView):
 	def get(self, request, **kwargs):
 		data = {
 			"total_orders": Order.objects.filter(product_owner_id=request.user.id).count(),
-			"total_revenue": Order.objects.filter(product_owner_id=request.user.id).aggregate(Sum("total_price"))['total_price__sum'],
+			"total_revenue": Order.objects.filter(product_owner_id=request.user.id).filter(status="Delivered").aggregate(Sum("total_price"))['total_price__sum'],
 			"pending_orders": Order.objects.filter(product_owner_id=request.user.id).filter(status="Pending").count()
 		}
 		return Response({"data": data}, status=status.HTTP_200_OK)

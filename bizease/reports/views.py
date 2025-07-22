@@ -59,11 +59,14 @@ class ReportDataView(APIView):
         end_date = range_dict.get("end_date")
 
         report_data = {}
+        report_data["total_products"] = Inventory.objects.filter(owner=request.user.id).count()
+        report_data["total_stock_value"] = Inventory.objects.annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
+        report_data["low_stock_items"] = Inventory.objects.filter(owner=request.user.id).filter(stock_level__lte=F("low_stock_threshold")).count()
 
         period = self.request.GET.get('period')
         if not start_date and not end_date:
             report_data["period"] = "All time"
-            #  Top Selling Product
+            # Top Selling Product
             top_product = ( # what happens when there's actuallya a tie?
                 OrderedProduct.objects
                 .filter(order_id__product_owner_id=request.user)
@@ -73,14 +76,11 @@ class ReportDataView(APIView):
                 .first()
             )
             report_data["top_selling_product"] = top_product["name"] if top_product else None
-            report_data["low_stock_items"] = Inventory.objects.filter(owner=request.user.id).filter(stock_level__lte=F("low_stock_threshold")).count()
             report_data["pending_orders"] = Order.objects.filter(product_owner_id=request.user.id).filter(status="Pending").count()
-            report_data["total_products"] = Inventory.objects.filter(owner=request.user.id).count()
-            report_data["total_stock_value"] = Inventory.objects.annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
-            report_data["total_revenue"] = Order.objects.filter(product_owner_id=request.user.id).aggregate(Sum("total_price"))["total_price__sum"]
-            date_revenue_chart_data = Order.objects.values("order_date").annotate(date=F("order_date"), revenue=Sum("total_price")).order_by("-order_date").values("date", "revenue")
+            report_data["total_revenue"] = Order.objects.filter(product_owner_id=request.user.id).filter(status="Delivered").aggregate(Sum("total_price"))["total_price__sum"]
+            date_revenue_chart_data = Order.objects.filter(status="Delivered").values("order_date").annotate(date=F("order_date"), revenue=Sum("total_price")).order_by("-order_date").values("date", "revenue")
             report_data["date_revenue_chart_data"] = date_revenue_chart_data
-            product_sales_chart_data = OrderedProduct.objects.values('name').annotate(quantity_sold=Sum("quantity"))
+            product_sales_chart_data = OrderedProduct.objects.filter(order_id__status="Delivered").values('name').annotate(quantity_sold=Sum("quantity"))
             report_data["product_sales_chart_data"] = product_sales_chart_data
         else:
             report_data["period"] = range_dict["time_period"]
@@ -88,40 +88,39 @@ class ReportDataView(APIView):
                 OrderedProduct.objects
                 .filter(order_id__product_owner_id=request.user.id)
                 .filter(order_id__order_date__range=(start_date, end_date))
+                .filter(order_id__status="Delivered")
                 .values("name")
                 .annotate(total_sold=Sum("quantity"))
                 .order_by("-total_sold")
                 .first()
             )
             report_data["top_selling_product"] = top_product["name"] if top_product else None
-            report_data["low_stock_items"] = (
-                Inventory.objects.filter(owner=request.user.id)
-                .filter(date_added__range=(start_date, end_date))
-                .filter(stock_level__lte=F("low_stock_threshold")).count()
-            )
+            
             report_data["pending_orders"] = (
                 Order.objects.filter(product_owner_id=request.user.id)
                 .filter(order_date__range=(start_date, end_date))
                 .filter(status="Pending").count()
             )
-            report_data["total_products"] = Inventory.objects.filter(owner=request.user.id).filter(date_added__range=(start_date, end_date)).count()
-            report_data["total_stock_value"] = (
-                Inventory.objects.filter(owner=request.user.id)
-                .filter(date_added__range=(start_date, end_date))
-                .aggregate(Sum("price"))["price__sum"]
-            )
+            
             report_data["total_revenue"] = (
                 Order.objects.filter(product_owner_id=request.user.id)
                 .filter(order_date__range=(start_date, end_date))
+                .filter(status="Delivered")
                 .aggregate(Sum("total_price"))["total_price__sum"]
             )
             date_revenue_chart_data = (
                 Order.objects
                 .filter(order_date__range=(start_date, end_date))
-                .annotate(revenue=Sum("total_price"), date=F("order_date__date")).values("date", "revenue") # convert this date_time field?
+                .filter(status="Delivered")
+                .annotate(revenue=Sum("total_price"), date=F("order_date")).values("date", "revenue")
             )
             report_data["date_revenue_chart_data"] = date_revenue_chart_data
-            product_sales_chart_data = OrderedProduct.objects.filter(order_id__order_date__range=(start_date, end_date)).values('name').annotate(quantity_sold=Sum("quantity"))
+            product_sales_chart_data = (
+                OrderedProduct.objects
+                .filter(order_id__order_date__range=(start_date, end_date))
+                .filter(order_id__status="Delivered")
+                .values('name').annotate(quantity_sold=Sum("quantity"))
+            )
             report_data["product_sales_chart_data"] = product_sales_chart_data
 
         return Response({"data": report_data}, status=status.HTTP_200_OK)
@@ -138,23 +137,29 @@ class ReportDataSummaryView(APIView):
         end_date = range_dict.get("end_date")
 
         if not start_date and not end_date:
-            summary = OrderedProduct.objects.order_by("name").values('name').annotate(quantity_sold=Sum("quantity"), revenue=Sum("cummulative_price"))
+            summary = (
+                OrderedProduct.objects
+                .filter(order_id__status="Delivered")
+                .order_by("name").values('name')
+                .annotate(quantity_sold=Sum("quantity"), revenue=Sum("cummulative_price"))
+            )
         else:
             summary = (
                 OrderedProduct.objects
                 .filter(order_id__order_date__range=(start_date, end_date))
+                .filter(order_id__status="Delivered")
                 .order_by("name").values('name')
                 .annotate(quantity_sold=Sum("quantity"), revenue=Sum("cummulative_price"))
             )
 
         inventory_items = Inventory.objects.filter(owner=self.request.user).order_by("product_name")
 
-        i = 0  # inventory_items_index
         for obj in summary:
-            if obj["name"] == inventory_items[i].product_name:
-                obj["stock_status"] = "low stock" if inventory_items[i].stock_level < inventory_items[i].low_stock_threshold else "in stock"
-                i += 1
-            else:
+            for item in inventory_items:
+                if obj["name"] == item.product_name:
+                    obj["stock_status"] = "low stock" if item.stock_level < item.low_stock_threshold else "in stock"
+                    
+            if not obj.get("stock_status"):
                 obj["stock_status"] = "out of stock"
 
         time_period = "All time" if not range_dict.get("time_period") else range_dict["time_period"]

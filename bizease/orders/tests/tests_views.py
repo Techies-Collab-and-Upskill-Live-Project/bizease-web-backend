@@ -362,7 +362,7 @@ class OrdersViewsTest(APITransactionTestCase):
 
 		response = self.client.get(reverse("orders-stats", args=["v1"]), format="json")
 		self.assertEqual(response.data["data"]["total_orders"], 2)
-		self.assertEqual(response.data["data"]["total_revenue"], 50000)
+		self.assertEqual(response.data["data"]["total_revenue"], 10000)
 		self.assertEqual(response.data["data"]["pending_orders"], 1)
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 
