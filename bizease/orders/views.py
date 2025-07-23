@@ -77,7 +77,7 @@ class OrdersView(APIView):
 		if page_param:
 			page_count = math.ceil(len(self.curr_queryset)/self.page_size)
 			if (page_count < page_param) or (page_param <= 0):
-				return Response({"detail": "Page Not found", data: None}, status=status.HTTP_404_NOT_FOUND)
+				return Response({"detail": "Page Not found", "data": None}, status=status.HTTP_404_NOT_FOUND)
 
 			offset = (page_param-1) * self.page_size
 			self.curr_queryset = self.curr_queryset[offset:offset+self.page_size]

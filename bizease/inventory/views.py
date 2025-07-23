@@ -113,11 +113,13 @@ class InventoryView(APIView):
 		serializer = InventoryItemSerializer(data=request.data)
 		if not serializer.is_valid():
 			return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+		elif serializer.validated_data.get("field_errors"):
+			return Response({"detail": serializer.validated_data["field_errors"]}, status=status.HTTP_400_BAD_REQUEST)
 		else:
 			db_saved_item = None
 			try:
 				db_saved_item = serializer.save(request.user)
-			except IntegrityError:
+			except IntegrityError as err:
 				return Response({"detail": "Multiple inventory items with the same 'product_name' are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
 
 			return Response({"detail": "New Item added to inventory", "data": InventoryItemSerializer(db_saved_item).data}, status=status.HTTP_201_CREATED)
