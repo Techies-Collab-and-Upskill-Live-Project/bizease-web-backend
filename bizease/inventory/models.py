@@ -17,7 +17,7 @@ class Inventory(models.Model):
 	class Meta:
 		ordering = ["-last_updated"]
 		constraints = [
-			models.UniqueConstraint(fields=["owner", "product_name"], name="user_unique_product"),
+			models.UniqueConstraint(fields=["owner", "product_name"], name="user_unique_product"), # More than one product should not have the same name
 			models.CheckConstraint(condition=Q(price__gt=0), name="price_greater_than_zero")
 		]
 

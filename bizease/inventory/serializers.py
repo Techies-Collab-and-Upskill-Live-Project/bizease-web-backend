@@ -12,6 +12,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "last_updated"]
 
     def validate(self, data):
+        """ Checks for unwanted fields"""
         expected_validated_data = {} # will be used to hold only values from Meta.fields
         good = True
 
@@ -26,7 +27,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             good = False
 
         if not good:
-            return {"field_errors": self.initial_data} # I don't want it NON_FIELD_ERRORS
+            return {"field_errors": self.initial_data}
         return data
     
     

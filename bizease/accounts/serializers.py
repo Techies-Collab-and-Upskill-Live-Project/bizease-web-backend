@@ -14,6 +14,7 @@ class ProfileDataSerializer(serializers.ModelSerializer):
         read_only_fields = ['email']
 
     def validate(self, data):
+        """ Checks for any unwanted fields """
         expected_validated_data = {} # will be used to hold only values from Meta.fields
         good = True
 
@@ -40,6 +41,10 @@ class SignUpDataSerializer(serializers.ModelSerializer):
         """
         Create, Saves and return a new `CustomUser` instance, given the validated data.
         """
+        if (validated_data.get("country")):
+            validated_data["country"] = validated_data["country"].title()
+        if (validated_data.get("currency")):
+            validated_data["currency"] = validated_data["currency"].title()
         unhashed_password = validated_data["password"]
         del validated_data["password"]
         new_user = CustomUser(**validated_data)

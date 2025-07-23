@@ -28,7 +28,7 @@ class Order(models.Model):
 	def save_order_to_db(self, products_err_dict, **kwargs):
 		super().save(**kwargs)
 
-		if len(self.ordered_products_objects) > 0:
+		if len(self.ordered_products_objects) > 0: # new order
 			self.total_price = 0
 			
 		non_unique_order_err = "Ordered products must be unique. Use the quantity field to specify multiple orders of same item."
@@ -65,7 +65,7 @@ class Order(models.Model):
 		actual_status_val = self.status
 		self.status = self.status.title()
 
-		if self.status not in ["Pending", "Delivered"]: # wouldn't the serializer have validated this field already?
+		if self.status not in ["Pending", "Delivered"]:
 			return  {"order-errors": [f"Invalid Order status value '{actual_status_val}'"]}
 		elif self.status == "Delivered":
 			self.delivery_date = self.order_date
@@ -77,10 +77,11 @@ class Order(models.Model):
 		try:
 			self.save_order_to_db(products_err_dict, **kwargs)
 		except ValueError as val_err:
-			# The error checked below was raised intentionally to rollback transactions but every other error
-			# raised are fatal errors relating to the database or other crucial aspects of the project 
-			# (i.e, values violating db constraints) and they need to be handled properly outside this function
+			# The error checked below might have been raised from the function in 
+			# the try block intentionally to rollback current transaction
 			if (str(val_err) != "Ordered item has one or more invalid attributes"): 
+				# Error wasn't raised directly from the function in the try block (i.e. error from values violating db constraints)
+				# So it needs to be handled properly outside this function
 				raise ValueError(val_err)
 
 		if products_err_dict:
@@ -93,7 +94,7 @@ class Order(models.Model):
 class OrderedProduct(models.Model):
 	name = models.CharField(max_length=100)
 	order_id = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="ordered_products")
-	quantity = models.PositiveIntegerField() # Add check constraint that make sure this field is gt_than_0
+	quantity = models.PositiveIntegerField()
 	price = models.DecimalField(default=0, max_digits=14, decimal_places=2)
 	cummulative_price = models.DecimalField(max_digits=14, decimal_places=2)
 
@@ -171,7 +172,9 @@ class OrderedProduct(models.Model):
 
 		inventory_product.save()
 		super().save(**kwargs)
-		if new_order == False:
+		if new_order == False: # this is an existing Order
+			 # Updating the quantity of any of the ordered product of an order
+			 # means the total_price will also increase
 			self.order_id.update_total_price()
 
 	@transaction.atomic

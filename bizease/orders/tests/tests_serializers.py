@@ -59,8 +59,6 @@ class OrderSerializersTest(TestCase):
 		}
 		self.assertEqual(OrderSerializer(self.test_order).data, expected_output)
 
-	# todo create Order with invalid data
-	# Make sure the fields that are expected to be ignored are actually ignored
 	def test_create_new_order(self):
 		data = {
 			"client_name": "good_customer",

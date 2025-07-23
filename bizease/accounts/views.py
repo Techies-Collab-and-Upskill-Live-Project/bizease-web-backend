@@ -1,7 +1,7 @@
 from rest_framework.parsers import JSONParser
 from .models import CustomUser
 from .serializers import SignUpDataSerializer, LoginDataSerializer, ProfileDataSerializer
-from django.contrib.auth import authenticate # , login
+from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status,generics
@@ -21,14 +21,6 @@ def get_tokens_for_user(user):
         'refresh': str(refresh),
         'access': str(refresh.access_token),
     }
-
-"""
-{"business_name ": "", "full_name": "", "email": "", "business_email": "", "currency": "", 
-"business_type": "", "password": "", "country": "", "state": "", "low_stock_threshold": 0}
-
-https://adedamola.pythonanywhere.com/
-"""
-
 
 class EmailVerificationView(APIView):
     def post(self, request, version):
@@ -97,11 +89,7 @@ class SignUpView(APIView):
             return Response({"detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         newUser = serializer.save()
-        if request.data.get("bypass_verification"):
-            newUser.is_active = True # makes development easier, remove in final version
-            newUser.save()
-        else:
-            send_email_verification_code(request.get_host(), newUser.email)
+        send_email_verification_code(request.get_host(), newUser.email)
         return Response({"detail": "User account created. Email verification has been sent"}, status=status.HTTP_201_CREATED)
 
 

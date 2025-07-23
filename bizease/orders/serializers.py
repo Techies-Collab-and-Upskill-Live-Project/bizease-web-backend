@@ -30,7 +30,8 @@ class OrderedProductSerializer(serializers.ModelSerializer):
 	def update(self, instance, validated_data):
 		errors = {}
 		for key in validated_data:
-			if key != "quantity":
+			if key != "quantity": 
+				# only the quantity field of a product can be updated once the product has been added to an order
 				errors[key] = ["Unexpected field"]
 		if errors:
 			return {"errors": errors}

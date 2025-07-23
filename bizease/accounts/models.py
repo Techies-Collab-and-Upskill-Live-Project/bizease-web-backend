@@ -62,7 +62,5 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 	class Meta:
 		constraints = [models.CheckConstraint(condition=models.Q(low_stock_threshold__gte=0), name="low_stock_threshold_gte_0")]
 
-	# all requests should have some form of currency field then
-
 	def __str__(self):
 		return self.email

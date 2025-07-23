@@ -62,7 +62,6 @@ class AccountsViewsTest(APITestCase):
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.data,  {"detail": {"email": ["custom user with this Email Address already exists."]}})
 
-    # is this enough test for invalid data?
     def test_signup_view_with_invalid_data(self):
         url = reverse('signup', args=["v1"])
         data = {

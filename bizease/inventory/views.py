@@ -9,15 +9,11 @@ from django.db.models import Sum, F, Q
 from django.db.utils import IntegrityError
 import math
 
-"""
-{"product_name": "Cup", "description": "Drink Water", "price": "10000"}
-"""
 
 class InventoryStatsView(APIView):
 	permission_classes = [IsAuthenticated]
 	parser_classes = [JSONParser]
 	
-	# Inventory.objects.aggregate(total=Sum("stock_level")) # total no of individual items in inventory. Is this what was meant by total products?
 	def get(self, request, **kwargs):
 		data = {
 			"total_stock_value": Inventory.objects.filter(owner=request.user.id).aggregate(total=Sum(F("stock_level") * F("price")))["total"],
@@ -33,7 +29,7 @@ class InventoryView(APIView):
 	curr_queryset = None
 
 	def filter_by_query_param(self):
-		# query - searches thru product_name and description (inexact) . Will serve as the search endpoint
+		# query - searches thru product_name and description (inexact) . Can be usd as a search endpoint
 		query_str = self.request.GET.get('query')
 		if not query_str or len(self.request.GET.getlist('query')) != 1:
 			return self

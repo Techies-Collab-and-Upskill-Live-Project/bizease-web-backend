@@ -139,7 +139,6 @@ class InventoryViewsTest(APITransactionTestCase):
 	def test_get_single_inventory_item_with_credentials(self):
 		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
 		response = self.client.get(reverse("inventory-item", args=["v1", str(self.item_1.id)]))
-		# print(response.data)
 		expected_data = InventoryItemSerializer(self.item_1).data
 		self.assertEqual(response.data["data"], expected_data)
 

@@ -67,7 +67,7 @@ class ReportDataView(APIView):
         if not start_date and not end_date:
             report_data["period"] = "All time"
             # Top Selling Product
-            top_product = ( # what happens when there's actuallya a tie?
+            top_product = ( # what happens when there's actually a tie?
                 OrderedProduct.objects
                 .filter(order_id__product_owner_id=request.user)
                 .values("name")
