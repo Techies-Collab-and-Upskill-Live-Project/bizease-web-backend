@@ -76,8 +76,6 @@ python manage.py startapp <app-name>
 
 ## Running unit tests
 
-_To be updated_
-
-## Running end-to-end tests
-
-_To be updated_
+```bash
+python manage.py test
+```
