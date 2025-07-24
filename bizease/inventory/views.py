@@ -154,6 +154,7 @@ class InventoryItemView(APIView):
 			try:
 				productDataUpdate.save(request.user)
 			except IntegrityError as i:
+				print(i)
 				if "user_unique_product" in str(i): # unique-constraint "user_unique_product" violated
 					return Response({"detail": "Multiple inventory items with the same 'product_name' are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
 				else: # check-constraint "price_greater_than_zero" violated (probably)

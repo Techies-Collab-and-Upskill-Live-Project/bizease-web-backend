@@ -150,8 +150,8 @@ class SingleOrderView(APIView):
 		if order_edits.is_valid():
 			response = order_edits.save(request.user)
 			if (response.get("errors")):
-				status_code = status.HTTP_500_INTERNAL_SERVER_ERROR if update_results["errors"] == "Fatal error" else status.HTTP_400_BAD_REQUEST
-				return Response({"detail": response["errors"]}, status=status.status_code)
+				status_code = status.HTTP_500_INTERNAL_SERVER_ERROR if response["errors"] == "Fatal error" else status.HTTP_400_BAD_REQUEST
+				return Response({"detail": response["errors"]}, status=status_code)
 			return Response(
 				{
 					"detail": "Order created successfully",
