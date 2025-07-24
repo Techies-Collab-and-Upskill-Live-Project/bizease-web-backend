@@ -26,7 +26,7 @@ class Order(models.Model):
 
 	@transaction.atomic
 	def save_order_to_db(self, products_err_dict, **kwargs):
-		super().save(**kwargs)
+		super().save(**kwargs) # Allows the model instance to get a db generated id that's required when saving ordered products that have a foreign key to it
 
 		if len(self.ordered_products_objects) > 0: # new order
 			self.total_price = 0
@@ -67,8 +67,11 @@ class Order(models.Model):
 
 		if self.status not in ["Pending", "Delivered"]:
 			return  {"order-errors": [f"Invalid Order status value '{actual_status_val}'"]}
-		elif self.status == "Delivered":
-			self.delivery_date = self.order_date
+		elif self.status == "Delivered" and not self.delivery_date:
+			self.delivery_date = timezone.now().date()
+
+		if not self.id: # new order
+			self.total_price = None # Should be 'None' but no validation is carried out before hand so this is just making sure
 
 		if (not self.id and ((type(ordered_products) != list) or not ordered_products)):
 			raise ValueError('An Order must have at least one ordered product', "custom")
