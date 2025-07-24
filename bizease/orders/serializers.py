@@ -90,13 +90,11 @@ class OrderSerializer(serializers.ModelSerializer):
 		try:
 			errors = new_order.save()
 		except ValueError as err:
-			print(err, self.validated_data, self.initial_data)
 			if (err.args[1] == "custom"):
 				return {"errors": {"ordered_products": err.args[0]}}
 			else:
 				return {"errors": "Fatal error"}
 		except BaseException as err_1:
-			print(err_1, self.validated_data, self.initial_data)
 			return {"errors": "Fatal error"}
 			
 		if (errors):

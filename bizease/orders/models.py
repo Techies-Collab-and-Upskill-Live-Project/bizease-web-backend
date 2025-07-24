@@ -2,7 +2,7 @@ from django.db import models, transaction
 from accounts.models import CustomUser
 from django.db.models import Q
 from inventory.models import Inventory
-# from django.utils import timezone
+from django.utils import timezone
 
 class Order(models.Model):
 	product_owner_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
