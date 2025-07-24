@@ -67,8 +67,8 @@ class SendEmailVerification(APIView):
         try:
             newUser = CustomUser.objects.get(email=request.data.get("email"))
         except CustomUser.DoesNotExist:
-            pass
-
+            # Always return success to prevent user enumeration
+            return Response({"detail": "Email verification has been sent if the email is registered"}, status=status.HTTP_200_OK)
         else:
             if not newUser.is_active:
                 send_email_verification_code(request.get_host(), newUser.email)
