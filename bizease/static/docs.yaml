@@ -61,8 +61,8 @@ paths:
       summary: Update a User's details
       description: 
         Updates one or more details of an existing authenticated user. Essentially 
-        all of a User's details can be changed except for password. The User details
-        to be updated is identified via the jwt Bearer token.
+        all of a User's details can be changed through this endpoint except for password 
+        and email. The User whose details is to be updated is identified via the jwt Bearer token.
       requestBody:
         description: 
           Updates a user's data with a key-value pair object, where each key 
@@ -70,8 +70,55 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/User"
-        required: true
+              type: object
+              description: At least one of the valid user profile properties except the user's password and email
+              properties:
+                business_name:
+                  type: string
+                full_name:
+                  type: string
+                business_type:
+                  type: string
+                  enum:
+                    - Sole proprietorship
+                    - General partnership
+                    - Limited partnership
+                    - Limited liability partnership (LLP)
+                    - C corporation
+                    - S corporation
+                    - Benefit corporation
+                    - Limited liability company (LLC)
+                    - Nonprofit
+                    - Joint venture
+                country:
+                  type: string
+                  description: Most countries are supported
+                currency:
+                  type: string
+                  description: Most valid currency codes are supported
+                  example: NGN
+                state:
+                  type: string
+                rcv_mail_for_new_orders:
+                  type: boolean
+                rcv_mail_for_low_stocks:
+                  type: boolean
+                phone:
+                  type: string
+                business_phone:
+                  type: string
+                business_address:
+                  type: string
+                rcv_mail_notification:
+                  type: boolean
+                rcv_msg_notification:
+                  type: boolean
+                default_order_status:
+                  type: string
+                language:
+                  type: string
+                low_stock_threshold:
+                  type: integer
       responses:
         '200':
           description: Successful operation
@@ -162,7 +209,7 @@ paths:
                 country:
                   type: string
                 currency:
-                  type: string # change to an enum
+                  type: string
                 state:
                   type: string
                 business_type:
@@ -742,7 +789,52 @@ paths:
               required:
                 - client_name
                 - order_date
-              $ref: "#/components/schemas/Order"
+                - ordered_products
+              type: object
+              properties:
+                client_name:
+                  type: string
+                client_email:
+                  type: string
+                client_phone:
+                  type: string
+                status:
+                  type: string
+                  default: Pending
+                  enum:
+                    - Pending
+                    - Delivered
+                order_date:
+                  description:
+                    String respresenting a valid date in 'YYYY-MM-DD' format
+                  type: string
+                  example: 2025-06-27
+                delivery_date:
+                  description:
+                    String respresenting a valid date in 'YYYY-MM-DD' format. It will only
+                    be saved if the order's status is 'Delivered' and will be created automatically 
+                    if it's absent in an order with a 'Delivered' status.
+                  type: string
+                  example: 2025-07-07
+                ordered_products:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - quantity
+                      - price
+                    properties:
+                      name:
+                        description: A string having the same value as any item's product_name in inventory.
+                        type: string
+                      quantity:
+                        description: A value that's not greater than the stock_level of the inventory item whose product_name is same as the name property above.
+                        type: integer
+                      price:
+                        description: A value that's the same as the price of the inventory item whose product_name is same as the name property above.
+                        type: number
+                        format: float
         required: true
       responses:
         '200':
@@ -840,15 +932,13 @@ paths:
       requestBody:
         description:
           All fields are optional but only any of 'client_name', 'client_email', 'client_phone' and 'status' 
-          fields that's to be updated can be in the request body, Any other field will be ignored. Since all
-          fields are optional, an empty request body is also disallowed
+          fields that's to be updated can be in the request body, Any other field will be ignored. Although all
+          fields are optional, an empty request body is disallowed.
         content:
           application/json:
             schema:
               type: object
               properties:
-                id:
-                  type: integer
                 client_name:
                   type: string
                 client_email:
@@ -1312,13 +1402,11 @@ paths:
                 - stock_level
                 - price
                 - date_added
-              type: array
-              items:
-                $ref: "#/components/schemas/InventoryItem"
+              $ref: "#/components/schemas/InventoryItemEdit"
         required: true
       responses:
         '200':
-          description: New Item(s) have been added to a User's Inventory
+          description: New Item has been added to a User's Inventory
           content:
             application/json:
               schema:
@@ -1326,7 +1414,7 @@ paths:
                 properties:
                   detail:
                     type: string
-                    example: New Item(s) added to inventory
+                    example: New Item added to inventory
         '400':
           description: 
             Invalid Request Body. In this case, Response Body is a json object containing a 'detail' 
@@ -1422,7 +1510,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/InventoryItem"
+              $ref: "#/components/schemas/InventoryItemEdit"
         required: true
       responses:
         '200':
@@ -1758,7 +1846,7 @@ paths:
                   detail:
                     type: string
                     enum:
-                      - Invalid GET parameters. Only period or a combination of start_date and end_date is allowed
+                      - Invalid GET parameters. Only 'period' or a combination of 'start_date' and 'end_date' is allowed
                       - Invalid value for period parameter
                       - Invalid date format. Use YYYY-MM-DD
 
@@ -1823,8 +1911,6 @@ components:
     InventoryItem:
       type: object
       properties:
-        owner:
-          type: string
         product_name:
           type: string
         description:
@@ -1836,13 +1922,39 @@ components:
         low_stock_threshold:
           type: integer
         price:
-          type: integer
+          type: number
+          format: float
         last_updated:
+          description: A timestamp in ISO 8601 format. It's automatically updated by the server
           type: string
+          example: 2025-07-23T11:46:18.055065Z
         date_added:
           description:
             string respresnting a valid date in 'YYYY-MM-DD' format
           type: string
+
+    InventoryItemEdit:
+      type: object
+      properties:
+        product_name:
+          description: No inventory item product_name must have the same value
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        stock_level:
+          type: integer
+        low_stock_threshold:
+          type: integer
+        price:
+          type: number
+          format: float
+        date_added:
+          description:
+            string respresnting a valid date in 'YYYY-MM-DD' format
+          type: string
+          example: 2025-07-19
 
     OrderedProduct:
       type: object
