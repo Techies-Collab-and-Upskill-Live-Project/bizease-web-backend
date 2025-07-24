@@ -78,7 +78,7 @@ class OrderSerializer(serializers.ModelSerializer):
 		del self.validated_data["ordered_products"] # ordered_products is not a column in Order table
 		if self.validated_data.get("status") != "Delivered":
 			if self.validated_data.get("delivery_date"):
-				del self.validated_data["delivery_date"]
+				del self.validated_data["delivery_date"] # only 'Delivered' orders can have a delivery date
 
 		new_order = Order(**self.validated_data)
 		new_order.product_owner_id = product_owner
@@ -93,10 +93,8 @@ class OrderSerializer(serializers.ModelSerializer):
 			if (err.args[1] == "custom"):
 				return {"errors": {"ordered_products": err.args[0]}}
 			else:
-				print(err)
 				return {"errors": "Fatal error"}
 		except BaseException as err_1:
-			print(err_1)
 			return {"errors": "Fatal error"}
 			
 		if (errors):
