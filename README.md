@@ -58,7 +58,7 @@ python manage.py migrate
 ```bash
 python manage.py runserver
 ```
-Once the server is running, open your browser and navigate to `http://localhost:8000/api-docs` to view the apis 
+Once the server is running, you can open your browser and navigate to `http://localhost:8000/api-docs/` to view the apis 
 documentation and also confirm the server is working
 
 In case of any issue, please visit the official [django docs](https://docs.djangoproject.com/en/5.2/) or the official [python  docs](https://docs.python.org/3/) for help
@@ -79,3 +79,6 @@ python manage.py startapp <app-name>
 ```bash
 python manage.py test
 ```
+
+## API Reference
+Online api documentation is also availabe via this swagger UI [link](http://adedamola.pythonanywhere.com/v1/api-docs/)
