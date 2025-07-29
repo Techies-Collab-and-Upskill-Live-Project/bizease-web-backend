@@ -7,11 +7,17 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch
 from datetime import datetime
+from decimal import Decimal
 
 class mock_datetime(datetime):
 	@classmethod
 	def now(cls):
 		return datetime(2025, 4, 10)
+
+class mock_datetime_1(datetime):
+	@classmethod
+	def now(cls):
+		return datetime(2025, 7, 29)
 
 
 class DashboardViewTest(APITransactionTestCase):
@@ -62,6 +68,7 @@ class DashboardViewTest(APITransactionTestCase):
 		self.assertEqual(response.data["data"]["currency"], "USD")
 		self.assertEqual(response.data["data"]["top_selling_product"], "Helmet")
 		self.assertEqual(response.data["data"]["revenue"], 356000)
+		self.assertEqual(response.data["data"]["revenue_change"], None)
 		self.assertEqual(response.data["data"]["language"], "English")
 		self.assertEqual(len(response.data["data"]["pending_orders"]), 2)
 		self.assertEqual(response.data["data"]["pending_orders"][0]["client_name"], "customer 2")
@@ -81,10 +88,83 @@ class DashboardViewTest(APITransactionTestCase):
 		self.assertEqual(response.data["data"]["currency"], "USD")
 		self.assertEqual(response.data["data"]["top_selling_product"], "Helmet")
 		self.assertEqual(response.data["data"]["revenue"], 206000)
+		self.assertEqual(response.data["data"]["revenue_change"], Decimal('37.33'))
 		self.assertEqual(response.data["data"]["language"], "English")
 		self.assertEqual(len(response.data["data"]["pending_orders"]), 1)
 		self.assertEqual(response.data["data"]["pending_orders"][0]["client_name"], "customer 2")
 		self.assertEqual(len(response.data["data"]["low_stock_items"]), 1)
 		self.assertEqual(response.data["data"]["low_stock_items"][0]["product_name"], "Wheelbarrow")
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	@patch("dashboard.views.datetime", mock_datetime_1)
+	def test_get_date_dashboard_data_with_credentials(self):
+
+		self.order_1 = Order(product_owner_id=self.test_user, client_name="Paul", client_email="dv@shipwrecks.ocean", status="Delivered", order_date="2025-07-28")
+		self.order_1.ordered_products_objects = [OrderedProduct(name="Wheelbarrow", quantity=1, price=150000), OrderedProduct(name="Helmet", quantity=1, price=6000)]
+		self.order_1.save()
+
+		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 1", client_phone="08045342896", status="Delivered", order_date="2025-07-29")
+		self.order_2.ordered_products_objects = [ 
+			OrderedProduct(name="Tape", quantity=5, price=4000), 
+			OrderedProduct(name="Safety Boots", quantity=1, price=65000)
+		]
+		self.order_2.save()
+
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("dashboard-data", args=["v1"]), query_params={"period": "2025-07-29"}, format="json")
+
+		self.assertEqual(response.data["data"]["business_name"], "Random sales llc")
+		self.assertEqual(response.data["data"]["currency"], "USD")
+		self.assertEqual(response.data["data"]["top_selling_product"], "Tape")
+		self.assertEqual(response.data["data"]["revenue"], 85000)
+		self.assertEqual(response.data["data"]["revenue_change"], Decimal('-45.51'))
+		self.assertEqual(response.data["data"]["language"], "English")
+		self.assertEqual(len(response.data["data"]["pending_orders"]), 0)
+		self.assertEqual(len(response.data["data"]["low_stock_items"]), 1)
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	@patch("dashboard.views.datetime", mock_datetime_1)
+	def test_get_date_dashboard_data_with_credentials_extra_check(self):
+
+		self.order_1 = Order(product_owner_id=self.test_user, client_name="Paul", client_email="dv@shipwrecks.ocean", status="Delivered", order_date="2025-07-28")
+		self.order_1.ordered_products_objects = [ 
+			OrderedProduct(name="Tape", quantity=5, price=4000), 
+			OrderedProduct(name="Safety Boots", quantity=1, price=65000)
+		]
+		self.order_1.save()
+
+		self.order_2 = Order(product_owner_id=self.test_user, client_name="customer 1", client_phone="08045342896", status="Delivered", order_date="2025-07-29")
+		self.order_2.ordered_products_objects = [OrderedProduct(name="Wheelbarrow", quantity=1, price=150000), OrderedProduct(name="Helmet", quantity=1, price=6000)]
+		self.order_2.save()
+
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("dashboard-data", args=["v1"]), query_params={"period": "2025-07-29"}, format="json")
+
+		self.assertEqual(response.data["data"]["business_name"], "Random sales llc")
+		self.assertEqual(response.data["data"]["currency"], "USD")
+		self.assertEqual(response.data["data"]["top_selling_product"], "Helmet")
+		self.assertEqual(response.data["data"]["revenue"], Decimal('156000'))
+		self.assertEqual(response.data["data"]["revenue_change"], Decimal('83.53'))
+		self.assertEqual(response.data["data"]["language"], "English")
+		self.assertEqual(len(response.data["data"]["pending_orders"]), 0)
+		self.assertEqual(len(response.data["data"]["low_stock_items"]), 1)
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	def test_get_dashboard_data_with_credentials_zero_and_null(self):
+
+		self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.access_token)
+		response = self.client.get(reverse("dashboard-data", args=["v1"]), query_params={"period": "2025-07-29"}, format="json")
+
+		self.assertEqual(response.data["data"]["business_name"], "Random sales llc")
+		self.assertEqual(response.data["data"]["currency"], "USD")
+		self.assertEqual(response.data["data"]["top_selling_product"], None)
+		self.assertEqual(response.data["data"]["revenue"], 0)
+		self.assertEqual(response.data["data"]["revenue_change"], None)
+		self.assertEqual(response.data["data"]["language"], "English")
+		self.assertEqual(len(response.data["data"]["pending_orders"]), 0)
+		self.assertEqual(len(response.data["data"]["low_stock_items"]), 1)
 
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
