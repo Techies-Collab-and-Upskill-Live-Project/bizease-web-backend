@@ -626,8 +626,9 @@ paths:
         - name: period
           in: query
           description: 
-            Passing a value of "all-time" which is the only valid value will make the dashboard 
-            data returned be from the creation of the user's account instead of the last 30 days
+            A value of "all-time" will make the dashboard data returned be calculated from the creation 
+            of the user's account instead of the last 30 days. A string value representing a date in 
+            the 'YYYY-MM-DD' format can also be sent to generate dashboard data for that date only
           schema:
             type: string
             example: all-time
@@ -649,8 +650,17 @@ paths:
                     description: name of the product with the most orders
                     type: string
                   revenue:
-                    description: sum of the total price of all the orders for any of a User's products
+                    description: 
+                      Sum of the total price of all the 'delivered' orders for 
+                      any of a User's products created within the specified period
                     type: integer
+                  revenue_change:
+                    description:
+                      floating point number representing the percent change in value between 
+                      the revenue generated in the specified period and the revenue generated 
+                      in the period before the currently specified period. It may be positive or negative
+                    type: number
+                    format: float
                   pending_orders:
                     type: array
                     items:
@@ -1692,12 +1702,28 @@ paths:
                         description: The total number of all the items that are currently in a User's inventory
                       total_stock_value:
                         description: 
-                          The total price of all the items that are currently in a User's inventory
+                          The total price of all the items that are currently in a User's inventory during a specified period.
+                          Each period is calculated from the date of the user's account creation up until the end of the 
+                          specified period. Deleted inmventory items don't count
+                      stock_value_change:
+                        type: number
+                        format: float
+                        description:
+                          floating point number representing the percent change in value between the current period and 
+                          the period befpre. Each period is calculated from the date of the user's account creation up
+                          until the end of the specified period. Deleted inventory items don't count.
                       total_revenue:
                         type: integer
                         description: 
                           The total price of all the orders for any of a user's product provided the order was created 
                           during the specified time period
+                      revenue_change:
+                        type: number
+                        format: float
+                        description:
+                          floating point number representing the percent change in value between 
+                          the revenue generated between the specified period and the revenue generated 
+                          in the period before the currently specified period. The value may be positive or negative
                       date_revenue_chart_data:
                         type: array
                         description: 
