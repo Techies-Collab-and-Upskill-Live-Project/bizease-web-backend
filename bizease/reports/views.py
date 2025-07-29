@@ -27,6 +27,8 @@ def process_GET_parameters(request):
         if period not in valid_values:
             return {"error": "Invalid value for period parameter"}
 
+        # 181 days was used for 6 months because not all months have 30 days 
+        # so an extra day was added to be just a little bit more accurate
         date_range_to_days_map = {"last-week": 7, "last-month": 30, "last-6-months": 181, "last-year": 365}
         days_num = date_range_to_days_map[period]
         current_timestamp = timezone.now()
@@ -60,14 +62,13 @@ class ReportDataView(APIView):
 
         report_data = {}
         report_data["total_products"] = Inventory.objects.filter(owner=request.user.id).count()
-        report_data["total_stock_value"] = Inventory.objects.annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
         report_data["low_stock_items"] = Inventory.objects.filter(owner=request.user.id).filter(stock_level__lte=F("low_stock_threshold")).count()
 
         period = self.request.GET.get('period')
         if not start_date and not end_date:
             report_data["period"] = "All time"
-            # Top Selling Product
-            top_product = ( # what happens when there's actually a tie?
+
+            top_product = (
                 OrderedProduct.objects
                 .filter(order_id__product_owner_id=request.user)
                 .values("name")
@@ -77,8 +78,22 @@ class ReportDataView(APIView):
             )
             report_data["top_selling_product"] = top_product["name"] if top_product else None
             report_data["pending_orders"] = Order.objects.filter(product_owner_id=request.user.id).filter(status="Pending").count()
-            report_data["total_revenue"] = Order.objects.filter(product_owner_id=request.user.id).filter(status="Delivered").aggregate(Sum("total_price"))["total_price__sum"]
-            date_revenue_chart_data = Order.objects.filter(status="Delivered").values("order_date").annotate(date=F("order_date"), revenue=Sum("total_price")).order_by("-order_date").values("date", "revenue")
+            report_data["total_stock_value"] = Inventory.objects.annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
+            report_data["stock_value_change"] = None
+            if report_data["total_stock_value"] is None:
+                report_data["total_stock_value"] = 0
+
+            report_data["total_revenue"] = (
+                Order.objects.filter(product_owner_id=request.user.id).filter(status="Delivered").aggregate(Sum("total_price"))["total_price__sum"]
+            )
+            if report_data["total_revenue"] is None:
+                report_data["total_revenue"] = 0
+            report_data["revenue_change"] = None
+
+            date_revenue_chart_data = (
+                Order.objects.filter(status="Delivered").values("order_date")
+                .annotate(date=F("order_date"), revenue=Sum("total_price")).order_by("-order_date").values("date", "revenue")
+            )
             report_data["date_revenue_chart_data"] = date_revenue_chart_data
             product_sales_chart_data = OrderedProduct.objects.filter(order_id__status="Delivered").values('name').annotate(quantity_sold=Sum("quantity"))
             report_data["product_sales_chart_data"] = product_sales_chart_data
@@ -101,13 +116,63 @@ class ReportDataView(APIView):
                 .filter(order_date__range=(start_date, end_date))
                 .filter(status="Pending").count()
             )
-            
+
+            prev_period_offsets = {"last-week": 8, "last-month": 31, "last-6-months": 182, "last-year": 366}
+            prev_cutoff_date = start_date - timedelta(days=prev_period_offsets[period])
+
+            cutoff_date = end_date
+            # print(Inventory.objects.filter(date_added__lte=cutoff_date).values("product_name", "price", "stock_level"))
+            report_data["total_stock_value"] = (
+                Inventory.objects.filter(date_added__lte=cutoff_date).annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
+            )
+            prev_period_stock_value = (
+                Inventory.objects.filter(date_added__lte=prev_cutoff_date).annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
+            )
+
+            if (report_data["total_stock_value"] is None):
+                report_data["total_stock_value"] = 0
+            if prev_period_stock_value is None:
+                prev_period_stock_value = 0
+
+            change = report_data["total_stock_value"] - prev_period_stock_value
+            if prev_period_stock_value == 0:
+                change_percentage = None
+            else:
+                change_percentage = round((change/prev_period_stock_value) * 100, 2)
+
+            report_data["stock_value_change"] = change_percentage
+
             report_data["total_revenue"] = (
                 Order.objects.filter(product_owner_id=request.user.id)
                 .filter(order_date__range=(start_date, end_date))
                 .filter(status="Delivered")
                 .aggregate(Sum("total_price"))["total_price__sum"]
             )
+
+            prev_start_date = start_date - timedelta(days=prev_period_offsets[period])
+            prev_end_date = start_date - timedelta(days=1)
+
+            prev_revenue = (
+                Order.objects
+                .filter(product_owner_id=request.user.id)
+                .filter(order_date__range=(prev_start_date, prev_end_date))
+                .filter(status="Delivered")
+                .aggregate(Sum("total_price"))['total_price__sum']
+            )
+
+            if (report_data["total_revenue"] is None):
+                report_data["total_revenue"] = 0
+            if prev_revenue is None:
+                prev_revenue = 0
+
+            change = report_data["total_revenue"] - prev_revenue
+            if prev_revenue == 0:
+                change_percentage = None
+            else:
+                change_percentage = round((change/prev_revenue) * 100, 2)
+
+            report_data["revenue_change"] = change_percentage
+
             date_revenue_chart_data = (
                 Order.objects
                 .filter(order_date__range=(start_date, end_date))
