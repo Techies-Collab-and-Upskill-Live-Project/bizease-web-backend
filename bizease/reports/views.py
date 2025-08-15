@@ -91,11 +91,11 @@ class ReportDataView(APIView):
             report_data["revenue_change"] = None
 
             date_revenue_chart_data = (
-                Order.objects.filter(status="Delivered").values("order_date")
+                Order.objects.filter(product_owner_id=request.user.id).filter(status="Delivered").values("order_date")
                 .annotate(date=F("order_date"), revenue=Sum("total_price")).order_by("-order_date").values("date", "revenue")
             )
             report_data["date_revenue_chart_data"] = date_revenue_chart_data
-            product_sales_chart_data = OrderedProduct.objects.filter(order_id__status="Delivered").values('name').annotate(quantity_sold=Sum("quantity"))
+            product_sales_chart_data = OrderedProduct.objects.filter(order_id__product_owner_id=request.user.id).filter(order_id__status="Delivered").values('name').annotate(quantity_sold=Sum("quantity"))
             report_data["product_sales_chart_data"] = product_sales_chart_data
         else:
             report_data["period"] = range_dict["time_period"]
@@ -174,6 +174,7 @@ class ReportDataView(APIView):
 
             date_revenue_chart_data = (
                 Order.objects
+                .filter(product_owner_id=request.user.id)
                 .filter(order_date__range=(start_date, end_date))
                 .filter(status="Delivered")
                 .annotate(revenue=Sum("total_price"), date=F("order_date")).values("date", "revenue")
@@ -181,6 +182,7 @@ class ReportDataView(APIView):
             report_data["date_revenue_chart_data"] = date_revenue_chart_data
             product_sales_chart_data = (
                 OrderedProduct.objects
+                .filter(order_id__product_owner_id=request.user.id)
                 .filter(order_id__order_date__range=(start_date, end_date))
                 .filter(order_id__status="Delivered")
                 .values('name').annotate(quantity_sold=Sum("quantity"))
@@ -203,6 +205,7 @@ class ReportDataSummaryView(APIView):
         if not start_date and not end_date:
             summary = (
                 OrderedProduct.objects
+                .filter(order_id__product_owner_id=request.user.id)
                 .filter(order_id__status="Delivered")
                 .order_by("name").values('name')
                 .annotate(quantity_sold=Sum("quantity"), revenue=Sum("cummulative_price"))
@@ -210,6 +213,7 @@ class ReportDataSummaryView(APIView):
         else:
             summary = (
                 OrderedProduct.objects
+                .filter(order_id__product_owner_id=request.user.id)
                 .filter(order_id__order_date__range=(start_date, end_date))
                 .filter(order_id__status="Delivered")
                 .order_by("name").values('name')
