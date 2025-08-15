@@ -228,11 +228,13 @@ class GoogleAuthView(APIView):
         except CustomUser.DoesNotExist:
             user = CustomUser(
                 full_name=name,
+                email=email,
                 business_name=f"{name}'s Biz",
                 business_type="Sole proprietorship",  # default
                 currency="NGN",
                 country="Nigeria",
-                state=""
+                state="",
+                is_active = True
             )
             user.set_password(''.join(random.choices(string.ascii_uppercase + string.digits, k=10)))
             user.save()
