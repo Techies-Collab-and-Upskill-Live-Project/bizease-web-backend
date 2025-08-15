@@ -78,7 +78,7 @@ class ReportDataView(APIView):
             )
             report_data["top_selling_product"] = top_product["name"] if top_product else None
             report_data["pending_orders"] = Order.objects.filter(product_owner_id=request.user.id).filter(status="Pending").count()
-            report_data["total_stock_value"] = Inventory.objects.annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
+            report_data["total_stock_value"] = Inventory.objects.filter(owner=request.user.id).annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
             report_data["stock_value_change"] = None
             if report_data["total_stock_value"] is None:
                 report_data["total_stock_value"] = 0
@@ -121,12 +121,11 @@ class ReportDataView(APIView):
             prev_cutoff_date = start_date - timedelta(days=prev_period_offsets[period])
 
             cutoff_date = end_date
-            # print(Inventory.objects.filter(date_added__lte=cutoff_date).values("product_name", "price", "stock_level"))
             report_data["total_stock_value"] = (
-                Inventory.objects.filter(date_added__lte=cutoff_date).annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
+                Inventory.objects.filter(owner=request.user.id).filter(date_added__lte=cutoff_date).annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
             )
             prev_period_stock_value = (
-                Inventory.objects.filter(date_added__lte=prev_cutoff_date).annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
+                Inventory.objects.filter(owner=request.user.id).filter(date_added__lte=prev_cutoff_date).annotate(value=F("price")*F("stock_level")).aggregate(Sum("value"))["value__sum"]
             )
 
             if (report_data["total_stock_value"] is None):
@@ -217,7 +216,7 @@ class ReportDataSummaryView(APIView):
                 .annotate(quantity_sold=Sum("quantity"), revenue=Sum("cummulative_price"))
             )
 
-        inventory_items = Inventory.objects.filter(owner=self.request.user).order_by("product_name")
+        inventory_items = Inventory.objects.filter(owner=request.user.id).filter(owner=self.request.user).order_by("product_name")
 
         for obj in summary:
             for item in inventory_items:
