@@ -12,6 +12,7 @@ from django.core.mail import EmailMultiAlternatives
 import os
 import random
 from datetime import datetime, timezone, timedelta
+import string
 
 
 def get_tokens_for_user(user):
