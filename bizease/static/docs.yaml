@@ -17,7 +17,7 @@ info:
     email: egbebitimi121@gmail.com
   version: 1.0.0
 servers:
-  - url: https://adedamola.pythonanywhere.com/v1/
+  - url: https://devdam.pythonanywhere.com/v1/
 tags:
   - name: Auth
     description: Authorization and Authentication
